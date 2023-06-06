@@ -41,7 +41,7 @@ Get the number of ranks on the global communicator of the distributed grid.
 """
 Construct a non-overlapping distributed grid from a grid with the SFC induced by the element ordering. It is assumed that this function is called with exactly the same grid on each MPI process in the communicator.
 """
-function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}) where {dim,C,T}
+function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, alg = PartitioningAlgorithm.SFC()) where {dim,C,T}
     grid_topology = CoverTopology(grid_to_distribute)
     nparts = MPI.Comm_size(grid_comm)
     partitioning = create_partitioning(grid_to_distribute, grid_topology, nparts, PartitioningAlgorithm.SFC())
