@@ -1,6 +1,7 @@
 module FerriteDistributed
 
-using Ferrite, MPI
+using Reexport
+@reexport using Ferrite, MPI
 
 include("CoverTopology.jl")
 
