@@ -75,7 +75,7 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
     n_cells_global = getncells(grid_to_distribute)
     @assert n_cells_global > 0 "Please provide a non-empty input mesh."
 
-    partmin,partmax = extrema(parts)
+    partmin,partmax = extrema(partitioning)
     @assert partmin > 0
     @assert partmax <= MPI.Comm_size(grid_comm)
 
@@ -83,7 +83,7 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
 
     # Start extraction of local grid
     # 1. Extract local cells
-    local_cells = getcells(grid_to_distribute)[[i for i ∈ 1:n_cells_global if parts[i] == my_rank]]
+    local_cells = getcells(grid_to_distribute)[[i for i ∈ 1:n_cells_global if partitioning[i] == my_rank]]
     @assert length(local_cells) > 0 # Cannot handle empty partitions yet
 
     # 2. Find unique nodes
@@ -125,7 +125,7 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
         global_to_local_cell_map[rank] = Dict{Int,Int}()
         next_local_cell_idx = 1
         for global_cell_idx ∈ 1:n_cells_global
-            if parts[global_cell_idx] == rank
+            if partitioning[global_cell_idx] == rank
                 global_to_local_cell_map[rank][global_cell_idx] = next_local_cell_idx
                 next_local_cell_idx += 1
             end
@@ -196,14 +196,14 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
     shared_edges = Dict{EdgeIndex,SharedEdge}()
     shared_faces = Dict{FaceIndex,SharedFace}()
     for (global_cell_idx,global_cell) ∈ enumerate(getcells(grid_to_distribute))
-        if parts[global_cell_idx] == my_rank
+        if partitioning[global_cell_idx] == my_rank
             # Vertex
             for (i, _) ∈ enumerate(Ferrite.vertices(global_cell))
                 cell_vertex = VertexIndex(global_cell_idx, i)
                 remote_vertices = Dict{Int,Vector{VertexIndex}}()
                 for other_vertex ∈ getneighborhood(grid_topology, grid_to_distribute, cell_vertex, true)
                     (global_cell_neighbor_idx, j) = other_vertex
-                    other_rank = parts[global_cell_neighbor_idx]
+                    other_rank = partitioning[global_cell_neighbor_idx]
                     if other_rank != my_rank
                         if Ferrite.toglobal(grid_to_distribute,cell_vertex) == Ferrite.toglobal(grid_to_distribute,other_vertex)
                             if !haskey(remote_vertices,other_rank)
@@ -228,7 +228,7 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
                     remote_faces = Dict{Int,Vector{FaceIndex}}()
                     for other_face ∈ getneighborhood(grid_topology, grid_to_distribute, cell_face, true)
                         (global_cell_neighbor_idx, j) = other_face
-                        other_rank = parts[global_cell_neighbor_idx]
+                        other_rank = partitioning[global_cell_neighbor_idx]
                         if other_rank != my_rank
                             if Ferrite.toglobal(grid_to_distribute,cell_face) == Ferrite.toglobal(grid_to_distribute,other_face)
                                 if !haskey(remote_faces,other_rank)
@@ -254,7 +254,7 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
                     remote_edges = Dict{Int,Vector{EdgeIndex}}()
                     for other_edge ∈ getneighborhood(grid_topology, grid_to_distribute, cell_edge, true)
                         (global_cell_neighbor_idx, j) = other_edge
-                        other_rank = parts[global_cell_neighbor_idx]
+                        other_rank = partitioning[global_cell_neighbor_idx]
                         if other_rank != my_rank
                             if Ferrite.toglobal(grid_to_distribute,cell_edge) == Ferrite.toglobal(grid_to_distribute,other_edge)
                                 if !haskey(remote_edges,other_edge)
