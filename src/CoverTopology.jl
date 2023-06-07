@@ -58,13 +58,13 @@ function CoverTopology(cells::Vector{C}) where C <: Ferrite.AbstractCell
             if length(cell_local_ids) == 1
                 Ferrite._vertex_neighbor!(V_vertex, I_vertex, J_vertex, cellid, cell, neighbor_local_ids, neighbor, cells[neighbor])
             # cells are only connected via exactly one face
-            elseif length(cell_local_ids) == Ferrite.face_npoints(cell)
+            elseif length(cell_local_ids) == Ferrite.nvertices_on_face(cell, 1)
                 Ferrite._face_neighbor!(V_face, I_face, J_face, cellid, cell, neighbor_local_ids, neighbor, cells[neighbor])
                 # Add edges on face
                 if Ferrite.getdim(cell) > 2
                     for cell_edge_nodes ∈ Ferrite.edges(cell)
                         neighbor_edge_local_ids = findall(x->x ∈ cell_edge_nodes, cells[neighbor].nodes)
-                        if length(neighbor_edge_local_ids) == Ferrite.edge_npoints(cell)
+                        if length(neighbor_edge_local_ids) == Ferrite.nvertices_on_edge(cell, 1)
                             Ferrite._edge_neighbor!(V_edge, I_edge, J_edge, cellid, cell, neighbor_edge_local_ids, neighbor, cells[neighbor])
                         end
                     end
@@ -77,7 +77,7 @@ function CoverTopology(cells::Vector{C}) where C <: Ferrite.AbstractCell
                     end
                 end
             # cells are only connected via exactly one edge
-            elseif Ferrite.getdim(cell) > 2 && length(cell_local_ids) == Ferrite.edge_npoints(cell)
+            elseif Ferrite.getdim(cell) > 2 && length(cell_local_ids) == Ferrite.nvertices_on_edge(cell, 1)
                 _edge_neighbor!(V_edge, I_edge, J_edge, cellid, cell, neighbor_local_ids, neighbor, cells[neighbor])
                 # Add vertices on edge
                 for cell_vertex_nodes ∈ Ferrite.vertices(cell)
@@ -100,7 +100,7 @@ function CoverTopology(cells::Vector{C}) where C <: Ferrite.AbstractCell
     fs_length = length(face_skeleton_global)
     for (cellid,cell) in enumerate(cells)
         for (local_face_id,face) in enumerate(Ferrite.faces(cell))
-            push!(face_skeleton_global, Ferrite.sortface(face))
+            push!(face_skeleton_global, first(Ferrite.sortface(face)))
             fs_length_new = length(face_skeleton_global)
             if fs_length != fs_length_new
                 push!(face_skeleton_local, FaceIndex(cellid,local_face_id))
