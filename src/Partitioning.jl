@@ -25,9 +25,10 @@ module PartitioningAlgorithm
 end # module PartitioningAlgorithm
 
 """
-    create_partitioning(::Ferrite.AbstractGrid, ::Ferrite.AbstractTopology, nparts::Int,partition_alg)
+    create_partitioning(::Ferrite.AbstractGrid, ::Ferrite.AbstractTopology, nparts::Int, partition_alg)::Vector{Int}
 
 Internal entry point for the construction of Ferrite.jl grid partitionings.
+Creates a vector where the index corresponds to the cell index of the input grid and the value is the 1-based rank.
 """
 create_partitioning(::Ferrite.AbstractGrid, ::Ferrite.AbstractTopology, nparts::Int, partition_alg)
 
