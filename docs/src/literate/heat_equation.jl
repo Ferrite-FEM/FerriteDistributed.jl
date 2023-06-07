@@ -58,7 +58,7 @@ ch = ConstraintHandler(dh);
 dbc = Dirichlet(:u, ∂Ω, (x, t) -> 0)
 dbc_val = 0 #src
 dbc = Dirichlet(:u, ∂Ω, (x, t) -> dbc_val) #src
-# add!(ch, dbc);
+add!(ch, dbc);
 close!(ch)
 
 # ### Assembling the linear system
