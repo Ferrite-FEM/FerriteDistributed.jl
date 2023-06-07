@@ -14,7 +14,7 @@ include("FerriteDistributedHYPREAssembly/assembler.jl")
 include("FerriteDistributedHYPREAssembly/conversion.jl")
 
 function __init__()
-    @info "FerriteHYPRE extension loaded."
+    @info "FerriteDistributed HYPRE extension loaded."
 end
 
 end # module FerriteHYPRE
