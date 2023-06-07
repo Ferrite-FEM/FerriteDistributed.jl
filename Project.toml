@@ -1,7 +1,7 @@
-name = "FerriteNODGrid"
+name = "FerriteDistributed"
 uuid = "570c3397-5fe4-4792-be0d-48dbf0d14605"
 authors = ["Dennis Ogiermann"]
-version = "1.0.0-DEV"
+version = "0.0.1-DEV"
 
 [deps]
 Ferrite = "c061ca5d-56c9-439f-9c0e-210fe06d3992"

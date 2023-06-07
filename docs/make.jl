@@ -1,8 +1,8 @@
 using Documenter
-using FerriteNODGrid
+using FerriteDistributed
 
 makedocs(
-    sitename = "FerriteNODGrid.jl",
+    sitename = "FerriteDistributed.jl",
     format = Documenter.HTML(),
     doctest = false,
     strict = false,
