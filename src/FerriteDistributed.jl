@@ -3,6 +3,8 @@ module FerriteDistributed
 using Reexport
 @reexport using Ferrite, MPI
 
+include("utils.jl")
+
 include("CoverTopology.jl")
 
 include("SharedEntity.jl")

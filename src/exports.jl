@@ -22,4 +22,13 @@ export
     is_shared_vertex,
     is_shared_edge,
     is_shared_face,
-    getlocalgrid
+    getlocalgrid,
+    #
+    face_dofs,
+    has_face_dofs,
+    vertex_dofs,
+    has_vertex_dofs,
+    cell_dofs,
+    has_cell_dofs,
+    edge_dofs,
+    has_edge_dofs

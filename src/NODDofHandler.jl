@@ -39,7 +39,7 @@ function Ferrite.add!(dh::NODDofHandler, name::Symbol, dim::Int, ip::Interpolati
     return dh
 end
 # Method for supporting dim=1 default
-function Ferrite.add!(dh::NODDofHandler, name::Symbol, ip::Interpolation=default_interpolation(getcelltype(dh.grid)))
+function Ferrite.add!(dh::NODDofHandler, name::Symbol, ip::Interpolation=default_interpolation(getcelltype(getgrid(dh))))
     return Ferrite.add!(dh, name, 1, ip)
 end
 Ferrite.ndofs_per_cell(dh::NODDofHandler, cell::Int=1) = dh.cell_dofs_offset[cell+1] - dh.cell_dofs_offset[cell]
@@ -462,9 +462,9 @@ function local_to_global_numbering(dh::NODDofHandler)
                         # fill correspondence array
                         corresponding_global_dofs = Array{Int64}(undef,n_vertices)
                         for vertex ∈ vertices_send[remote_rank]
-                            if Ferrite.has_vertex_dofs(dh, field_idx, vertex)
+                            if has_vertex_dofs(dh, field_idx, vertex)
                                 # We just put the first dof into the array to reduce communication
-                                vdofs = Ferrite.vertex_dofs(dh, field_idx, vertex)
+                                vdofs = vertex_dofs(dh, field_idx, vertex)
                                 corresponding_global_dofs[next_buffer_idx] = local_to_global[vdofs[1]]
                             end
                             next_buffer_idx += 1
@@ -500,9 +500,9 @@ function local_to_global_numbering(dh::NODDofHandler)
                         # fill correspondence array
                         corresponding_global_dofs = Array{Int64}(undef,n_faces)
                         for face ∈ faces_send[remote_rank]
-                            if Ferrite.has_face_dofs(dh, field_idx, face)
+                            if has_face_dofs(dh, field_idx, face)
                                 # We just put the first dof into the array to reduce communication
-                                fdofs = Ferrite.face_dofs(dh, field_idx, face)
+                                fdofs = face_dofs(dh, field_idx, face)
                                 corresponding_global_dofs[next_buffer_idx] = local_to_global[fdofs[1]]
                             end
                             next_buffer_idx += 1
@@ -548,9 +548,9 @@ function local_to_global_numbering(dh::NODDofHandler)
                         # fill correspondence array
                         corresponding_global_dofs = Array{Int64}(undef,n_edges)
                         for edge ∈ edges_send_unique
-                            if Ferrite.has_edge_dofs(dh, field_idx, edge)
+                            if has_edge_dofs(dh, field_idx, edge)
                                 # We just put the first dof into the array to reduce communication
-                                edofs = Ferrite.edge_dofs(dh, field_idx, edge)
+                                edofs = edge_dofs(dh, field_idx, edge)
                                 corresponding_global_dofs[next_buffer_idx] = local_to_global[edofs[1]]
                             end
                             next_buffer_idx += 1
@@ -576,8 +576,8 @@ function local_to_global_numbering(dh::NODDofHandler)
                     corresponding_global_dofs = Array{Int64}(undef,n_vertices)
                     MPI.Recv!(corresponding_global_dofs, global_comm(dgrid); source=sending_rank-1)
                     for (cdi,vertex) ∈ enumerate(VertexIndex.(zip(local_cells,local_cell_vis)))
-                        if Ferrite.has_vertex_dofs(dh, field_idx, vertex)
-                            vdofs = Ferrite.vertex_dofs(dh, field_idx, vertex)
+                        if has_vertex_dofs(dh, field_idx, vertex)
+                            vdofs = vertex_dofs(dh, field_idx, vertex)
                             for d in 1:getfielddim(dh, field_idx)
                                 local_to_global[vdofs[d]] = corresponding_global_dofs[cdi]+d-1
                                 Ferrite.@debug println("  Updating field $(dh.field_names[field_idx]) vertex $vertex to $(corresponding_global_dofs[cdi]+d-1) (R$my_rank)")
@@ -605,8 +605,8 @@ function local_to_global_numbering(dh::NODDofHandler)
                     corresponding_global_dofs = Array{Int64}(undef,n_faces)
                     MPI.Recv!(corresponding_global_dofs, global_comm(dgrid); source=sending_rank-1)
                     for (cdi,face) ∈ enumerate(FaceIndex.(zip(local_cells,local_cell_vis)))
-                        if Ferrite.has_face_dofs(dh, field_idx, face)
-                            fdofs = Ferrite.face_dofs(dh, field_idx, face)
+                        if has_face_dofs(dh, field_idx, face)
+                            fdofs = face_dofs(dh, field_idx, face)
                             for d in 1:getfielddim(dh, field_idx)
                                 local_to_global[fdofs[d]] = corresponding_global_dofs[cdi]+d-1
                                 Ferrite.@debug println("  Updating field $(dh.field_names[field_idx]) face $face to $(corresponding_global_dofs[cdi]) (R$my_rank)")
@@ -640,8 +640,8 @@ function local_to_global_numbering(dh::NODDofHandler)
                     MPI.Recv!(corresponding_global_dofs, global_comm(dgrid); source=sending_rank-1)
                     Ferrite.@debug println("   Received $corresponding_global_dofs edge dofs from $sending_rank (R$my_rank)")
                     for (cdi,edge) ∈ enumerate(EdgeIndex.(zip(local_cells,local_cell_vis)))
-                        if Ferrite.has_edge_dofs(dh, field_idx, edge)
-                            edofs = Ferrite.edge_dofs(dh, field_idx, edge)
+                        if has_edge_dofs(dh, field_idx, edge)
+                            edofs = edge_dofs(dh, field_idx, edge)
                             for d in 1:getfielddim(dh, field_idx)
                                 local_to_global[edofs[d]] = corresponding_global_dofs[cdi]+d-1
                                 Ferrite.@debug println("  Updating field $(dh.field_names[field_idx]) edge $edge to $(corresponding_global_dofs[cdi]) (R$my_rank)")
@@ -808,100 +808,4 @@ function Ferrite.__close!(dh::NODDofHandler{dim}) where {dim}
     dh.closed[] = true
 
     return dh, vertexdicts, edgedicts, facedicts
-end
-
-
-
-# ------------------------------------
-#           UTILITY BLOCK
-# ------------------------------------
-
-#TODO move this into ferrite core
-has_cell_dofs(dh::NODDofHandler, field_idx::Int, cell::Int) = ncelldofs(Ferrite.getfieldinterpolation(dh, field_idx)) > 0
-has_vertex_dofs(dh::NODDofHandler, field_idx::Int, vertex::VertexIndex) = nvertexdofs(Ferrite.getfieldinterpolation(dh, field_idx)) > 0
-has_edge_dofs(dh::NODDofHandler, field_idx::Int, edge::EdgeIndex) = nedgedofs(Ferrite.getfieldinterpolation(dh, field_idx)) > 0
-has_face_dofs(dh::NODDofHandler, field_idx::Int, face::FaceIndex) = nfacedofs(Ferrite.getfieldinterpolation(dh, field_idx)) > 0
-
-# entity_dofs(dh::NODDofHandler, field_idx::Int, vertex::Int) = vertexdicts[field_idx][vertex]
-# entity_dofs(dh::NODDofHandler, field_idx::Int, edge::Tuple{Int,Int}) = edgedicts[field_idx][edge]
-# entity_dofs(dh::NODDofHandler, field_idx::Int, face::NTuple{dim,Int}) where {dim} = facedicts[field_idx][face]
-
-"""
-Compute the dofs belonging to a given cell of a given field.
-"""
-function cell_dofs(dh::NODDofHandler, field_idx::Int, cell::Int)
-    ip = Ferrite.getfieldinterpolation(dh, field_idx)
-    fdim = getfielddim(dh, field_idx)
-    nentitydofs = fdim*ncelldofs(ip)
-    totaldofs = fdim*getnbasefunctions(ip)
-    ldofs = dof_range(dh, field_idx)[(totaldofs-nentitydofs+1):totaldofs]
-    return celldofs(dh, cell)[ldofs]
-end
-
-nvertexdofs(ip::Interpolation) = length(Ferrite.vertexdof_indices(ip)[1])
-nfacedofs(ip::Interpolation) = length(Ferrite.facedof_interior_indices(ip)[1])
-nedgedofs(ip::Interpolation) = length(Ferrite.edgedof_interior_indices(ip)[1])
-ncelldofs(ip::Interpolation) = length(Ferrite.celldof_interior_indices(ip)[1])
-
-"""
-Compute the dofs belonging to a given vertex of a given field.
-"""
-function vertex_dofs(dh::NODDofHandler, field_idx::Int, vertex::VertexIndex)
-    ip = Ferrite.getfieldinterpolation(dh, field_idx)
-    nvdofs = nvertexdofs(ip)
-    nvdofs == 0 && return Int[]
-    fdim = getfielddim(dh, field_idx)
-    cell,local_vertex_index = vertex
-    cell_geo = getcells(getgrid(dh), cell)
-    nvertices = length(Ferrite.vertices(cell_geo))
-    nentitydofs = fdim*nvdofs*nvertices
-    ldofr = dof_range(dh, field_idx)[1:nentitydofs]
-    vdofs = Ferrite.celldofs(dh, cell)[ldofr]
-    return reshape(vdofs, (fdim,nvertices))[:, local_vertex_index]
-end
-
-"""
-Compute the dofs belonging to a given edge of a given field.
-"""
-function edge_dofs(dh::NODDofHandler, field_idx::Int, edge::EdgeIndex)
-    ip = Ferrite.getfieldinterpolation(dh, field_idx)
-    nedofs = nedgedofs(ip)
-    nedofs == 0 && return Int[]
-    nvdofs = nvertexdofs(ip)
-    fdim = getfielddim(dh, field_idx)
-    cell,local_edge_index = edge
-    cell_geo = getcells(getgrid(dh), cell)
-    nedges_on_cell = length(Ferrite.edges(cell_geo))
-    nvertices_on_cell = length(Ferrite.vertices(cell_geo))
-    nentitydofs = fdim*nedofs*nedges_on_cell
-    offset = fdim*nvdofs*nvertices_on_cell
-    edge_dofrange = dof_range(dh, field_idx)[(offset+1):(offset+nentitydofs)]
-    lodal_edgedofs = Ferrite.celldofs(dh, cell)[edge_dofrange]
-    return reshape(lodal_edgedofs, (fdim,nedges_on_cell))[:, local_edge_index]
-end
-
-"""
-Compute the dofs belonging to a given face of a given field.
-"""
-function face_dofs(dh::NODDofHandler, field_idx::Int, face::FaceIndex)
-    ip = Ferrite.getfieldinterpolation(dh, field_idx)
-    dim = getdim(dh)
-    nfdofs = nfacedofs(ip)
-    nfdofs == 0 && return Int[]
-    nvdofs = nvertexdofs(ip)
-    fdim = getfielddim(dh, field_idx)
-    cell,local_face_index = face
-    cell_geo = getcells(getgrid(dh), cell)
-    nfaces_on_cell = length(Ferrite.faces(cell_geo))
-    nvertices_on_cell = length(Ferrite.vertices(cell_geo))
-    nentitydofs = fdim*nfacedofs(ip)*nfaces_on_cell
-    offset = fdim*nvdofs*nvertices_on_cell
-    if dim > 2
-        nedges_on_cell = length(Ferrite.edges(cell_geo))
-        nedofs = nedgedofs(ip)
-        offset += fdim*nedofs*nedges_on_cell
-    end
-    face_dofrange = dof_range(dh, field_idx)[(offset+1):(offset+nentitydofs)]
-    local_facedofs = Ferrite.celldofs(dh, cell)[face_dofrange]
-    return reshape(local_facedofs, (fdim,nfaces_on_cell))[:, local_face_index]
 end
