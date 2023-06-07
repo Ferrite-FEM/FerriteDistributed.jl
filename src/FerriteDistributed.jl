@@ -4,7 +4,7 @@ using Reexport
 @reexport using Ferrite, MPI
 
 # Common stuff from core
-import Ferrite: get_coordinate_eltype, ScalarWrapper,
+import Ferrite: get_coordinate_eltype, ScalarWrapper, @debug,
     nnodes_per_cell, n_components,
     BoundaryIndex, FaceIndex, EdgeIndex, CellIndex, VertexIndex,
     boundaryfunction, faces, edges, vertices,

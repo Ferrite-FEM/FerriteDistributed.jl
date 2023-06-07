@@ -48,7 +48,11 @@ end
 nvertexdofs(ip::Interpolation) = length(Ferrite.vertexdof_indices(ip)[1])
 nfacedofs(ip::Interpolation) = length(Ferrite.facedof_interior_indices(ip)[1])
 nedgedofs(ip::Interpolation) = length(Ferrite.edgedof_interior_indices(ip)[1])
-ncelldofs(ip::Interpolation) = length(Ferrite.celldof_interior_indices(ip)[1])
+ncelldofs(ip::Interpolation) = length(Ferrite.celldof_interior_indices(ip))
+nvertexdofs(ip::VectorizedInterpolation{vdim}) where {vdim} = nvertexdofs(ip.ip)#*vdim
+nfacedofs(ip::VectorizedInterpolation{vdim}) where {vdim} = nfacedofs(ip.ip)#*vdim
+nedgedofs(ip::VectorizedInterpolation{vdim}) where {vdim} = nedgedofs(ip.ip)#*vdim
+ncelldofs(ip::VectorizedInterpolation{vdim}) where {vdim} = ncelldofs(ip.ip)#*vdim
 
 """
 Compute the dofs belonging to a given vertex of a given field.

@@ -42,8 +42,12 @@ function Ferrite.add!(dh::NODDofHandler, name::Symbol, dim::Int, ip::Interpolati
     return dh
 end
 # NOTE - REDUNDANT
-function Ferrite.add!(dh::NODDofHandler, name::Symbol, ip::Interpolation=default_interpolation(getcelltype(getgrid(dh))))
+function Ferrite.add!(dh::NODDofHandler, name::Symbol, ip::Interpolation)
     return Ferrite.add!(dh, name, 1, ip)
+end
+# NOTE - REDUNDANT
+function Ferrite.add!(dh::NODDofHandler, name::Symbol, ip::VectorizedInterpolation{vdim}) where {vdim}
+    return Ferrite.add!(dh, name, vdim, ip)
 end
 # NOTE - REDUNDANT
 Ferrite.ndofs_per_cell(dh::NODDofHandler, cell::Int=1) = dh.cell_dofs_offset[cell+1] - dh.cell_dofs_offset[cell]
@@ -64,7 +68,7 @@ end
 function field_offset(dh::NODDofHandler, field_idx::Int)
     offset = 0
     for i in 1:field_idx-1
-        offset += getnbasefunctions(Ferrite.getfieldinterpolation(dh,i))::Int * getfielddim(dh, i)
+        offset += getnbasefunctions(Ferrite.getfieldinterpolation(dh,i))::Int
     end
     return offset
 end
@@ -97,7 +101,7 @@ Ferrite.getfielddim(dh::NODDofHandler, field_idx::Int) = dh.field_dims[field_idx
 # NOTE - REDUNDANT
 function Ferrite.dof_range(dh::NODDofHandler, field_idx::Int)
     offset = field_offset(dh, field_idx)
-    n_field_dofs = getnbasefunctions(Ferrite.getfieldinterpolation(dh, field_idx))::Int * getfielddim(dh, field_idx)
+    n_field_dofs = getnbasefunctions(Ferrite.getfieldinterpolation(dh, field_idx))::Int
     return (offset+1):(offset+n_field_dofs)
 end
 # NOTE - REDUNDANT
@@ -211,9 +215,9 @@ Renumber the dofs in local ordering to their corresponding global numbering.
 
 TODO: Refactor for MixedDofHandler integration
 """
-function local_to_global_numbering(dh::NODDofHandler)
+function local_to_global_numbering(dh::NODDofHandler{dim}) where {dim}
     dgrid = getglobalgrid(dh)
-    dim = getdim(dgrid)
+
     # MPI rank starting with 1 to match Julia's index convention
     my_rank = global_rank(dgrid)
 
@@ -936,6 +940,9 @@ function Ferrite.add!(ch::ConstraintHandler{DH}, dbc::Dirichlet) where {DH <: NO
     # Extract stuff for the field
     field_idx = find_field(ch.dh, dbc.field_name) # throws if name not found
     interpolation = getfieldinterpolation(ch.dh, field_idx)
+    if interpolation isa VectorizedInterpolation
+        interpolation = interpolation.ip
+    end
     field_dim = getfielddim(ch.dh, field_idx)
 
     if !all(c -> 0 < c <= field_dim, dbc.components)
