@@ -61,7 +61,7 @@ It is assumed that this function is called with exactly the same grid on each MP
 function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, alg = PartitioningAlgorithm.SFC()) where {dim,C,T}
     grid_topology = CoverTopology(grid_to_distribute)
     nparts = MPI.Comm_size(grid_comm)
-    partitioning = create_partitioning(grid_to_distribute, grid_topology, nparts, PartitioningAlgorithm.SFC())
+    partitioning = create_partitioning(grid_to_distribute, grid_topology, nparts, alg)
     NODGrid(grid_comm, grid_to_distribute, grid_topology, partitioning)
 end
 
@@ -303,5 +303,6 @@ end
 Helper to directly generate non-overlapping distributed grids, designed to replace the call to [`generate_grid`](@ref) for use in distributed environments.
 """
 function generate_nod_grid(comm::MPI.Comm, args...)
-    return NODGrid(comm, generate_grid(args...))
+    full_grid = generate_grid(args...)
+    return NODGrid(comm, full_grid)
 end

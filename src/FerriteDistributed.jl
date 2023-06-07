@@ -12,6 +12,7 @@ include("interface.jl")
 include("Partitioning.jl")
 
 include("NODGrid.jl")
+include("NODDofHandler.jl")
 
 include("VTK.jl")
 
