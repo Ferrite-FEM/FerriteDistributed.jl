@@ -25,7 +25,7 @@ makedocs(
     format = Documenter.HTML(),
     doctest = false,
     strict = false,
-    draft = liveserver,
+    draft = true,
     pages = Any[
         "Home" => "index.md",
         "Examples" => [GENERATEDEXAMPLES;],
