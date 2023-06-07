@@ -28,8 +28,11 @@ struct NODDofHandler{dim,T,G<:AbstractNODGrid{dim}} <: Ferrite.AbstractDofHandle
     ldof_to_gdof::Vector{Int}
     ldof_to_rank::Vector{Int32}
 end
-
-# TODO check if we can get rid of this block
+# NOTE - REDUNDANT
+Ferrite.getfieldnames(dh::NODDofHandler) = dh.field_names
+# NOTE - REDUNDANT
+Ferrite.nnodes_per_cell(dh::NODDofHandler, cell::Int=1) = Ferrite.nnodes_per_cell(getgrid(dh), cell)
+# NOTE - REDUNDANT
 function Ferrite.add!(dh::NODDofHandler, name::Symbol, dim::Int, ip::Interpolation=default_interpolation(getcelltype(getgrid(dh))))
     @assert !Ferrite.isclosed(dh)
     @assert !in(name, dh.field_names)
@@ -38,23 +41,26 @@ function Ferrite.add!(dh::NODDofHandler, name::Symbol, dim::Int, ip::Interpolati
     push!(dh.field_interpolations, ip)
     return dh
 end
-# Method for supporting dim=1 default
+# NOTE - REDUNDANT
 function Ferrite.add!(dh::NODDofHandler, name::Symbol, ip::Interpolation=default_interpolation(getcelltype(getgrid(dh))))
     return Ferrite.add!(dh, name, 1, ip)
 end
+# NOTE - REDUNDANT
 Ferrite.ndofs_per_cell(dh::NODDofHandler, cell::Int=1) = dh.cell_dofs_offset[cell+1] - dh.cell_dofs_offset[cell]
+# NOTE - REDUNDANT
 function find_field(dh::NODDofHandler, field_name::Symbol)
     j = findfirst(i->i == field_name, dh.field_names)
     j === nothing && error("could not find field :$field_name in DofHandler (existing fields: $(getfieldnames(dh)))")
     return j
 end
+# NOTE - REDUNDANT
 function celldofs!(global_dofs::Vector{Int}, dh::NODDofHandler, i::Int)
     @assert Ferrite.isclosed(dh)
     @assert length(global_dofs) == Ferrite.ndofs_per_cell(dh, i)
     unsafe_copyto!(global_dofs, 1, dh.cell_dofs, dh.cell_dofs_offset[i], length(global_dofs))
     return global_dofs
 end
-# Calculate the offset to the first local dof of a field
+# NOTE - REDUNDANT
 function field_offset(dh::NODDofHandler, field_idx::Int)
     offset = 0
     for i in 1:field_idx-1
@@ -62,34 +68,39 @@ function field_offset(dh::NODDofHandler, field_idx::Int)
     end
     return offset
 end
-
+# NOTE - REDUNDANT
 function field_offset(dh::NODDofHandler, field_name::Symbol)
     field_idx = findfirst(i->i == field_name, getfieldnames(dh))
     field_idx === nothing && error("did not find field $field_name")
     return field_offset(dh,field_idx)
 end
+# NOTE - REDUNDANT
 function Ferrite.celldofs!(global_dofs::Vector{Int}, dh::NODDofHandler, i::Int)
     @assert Ferrite.isclosed(dh)
     @assert length(global_dofs) == Ferrite.ndofs_per_cell(dh, i)
     unsafe_copyto!(global_dofs, 1, dh.cell_dofs, dh.cell_dofs_offset[i], length(global_dofs))
     return global_dofs
 end
-
+# NOTE - REDUNDANT
 function getfielddim(dh::NODDofHandler, field_name::Symbol) 
     field_idx = findfirst(i->i == field_name, getfieldnames(dh))
     field_idx === nothing && error("did not find field $field_name")
     return getfielddim(dh, field_idx)
 end
+# NOTE - REDUNDANT
 function Ferrite.getfieldinterpolation(dh::NODDofHandler, field_idx::Int)
     ip = dh.field_interpolations[field_idx]
     return ip
 end
-getfielddim(dh::NODDofHandler, field_idx::Int) = dh.field_dims[field_idx]
-function dof_range(dh::NODDofHandler, field_idx::Int)
+# NOTE - REDUNDANT
+Ferrite.getfielddim(dh::NODDofHandler, field_idx::Int) = dh.field_dims[field_idx]
+# NOTE - REDUNDANT
+function Ferrite.dof_range(dh::NODDofHandler, field_idx::Int)
     offset = field_offset(dh, field_idx)
     n_field_dofs = getnbasefunctions(Ferrite.getfieldinterpolation(dh, field_idx))::Int * getfielddim(dh, field_idx)
     return (offset+1):(offset+n_field_dofs)
 end
+# NOTE - REDUNDANT
 num_fields(dh::NODDofHandler) = length(dh.field_names)
 
 """
@@ -109,6 +120,7 @@ function Ferrite.DofHandler(grid::AbstractNODGrid{dim}) where {dim}
     NODDofHandler(Symbol[], Int[], Interpolation[], Ferrite.BCValues{Float64}[], Int[], Int[], Ferrite.ScalarWrapper(false), grid, Ferrite.ScalarWrapper(-1), Int[], Int32[])
 end
 
+# NOTE - REDUNDANT
 function Base.show(io::IO, ::MIME"text/plain", dh::NODDofHandler)
     println(io, "NODDofHandler")
     println(io, "  Fields:")
@@ -123,6 +135,7 @@ function Base.show(io::IO, ::MIME"text/plain", dh::NODDofHandler)
     end
 end
 
+# NOTE - REDUNDANT
 Ferrite.getdim(dh::NODDofHandler{dim}) where {dim} = dim 
 
 getlocalgrid(dh::NODDofHandler) = getlocalgrid(dh.grid)
@@ -670,6 +683,7 @@ function Ferrite.close!(dh::NODDofHandler)
     return dh
 end
 
+# NOTE - REDUNDANT
 function Ferrite.__close!(dh::NODDofHandler{dim}) where {dim}
     @assert !Ferrite.isclosed(dh)
 
@@ -808,4 +822,105 @@ function Ferrite.__close!(dh::NODDofHandler{dim}) where {dim}
     dh.closed[] = true
 
     return dh, vertexdicts, edgedicts, facedicts
+end
+
+# NOTE - REDUNDANT
+function Ferrite.reinit!(cc::CellCache{<:Any,<:Ferrite.AbstractGrid,<:NODDofHandler}, i::Int)
+    cc.cellid[] = i
+    if cc.flags.nodes
+        cellnodes!(cc.nodes, cc.grid, i)
+    end
+    if cc.flags.coords
+        cellcoords!(cc.coords, cc.grid, i)
+    end
+    if cc.dh !== nothing && cc.flags.dofs
+        celldofs!(cc.dofs, cc.dh, i)
+    end
+    return cc
+end
+
+# NOTE - REDUNDANT
+function Ferrite.CellCache(dh::NODDofHandler{dim}, flags::UpdateFlags=UpdateFlags()) where {dim}
+    N = Ferrite.nnodes_per_cell(getgrid(dh))
+    nodes = zeros(Int, N)
+    coords = zeros(Vec{dim, get_coordinate_eltype(getgrid(dh))}, N)
+    n = ndofs_per_cell(dh)
+    celldofs = zeros(Int, n)
+    return Ferrite.CellCache(flags, getgrid(dh), ScalarWrapper(-1), nodes, coords, dh, celldofs)
+end
+
+# NOTE - REDUNDANT
+function Ferrite.evaluate_at_grid_nodes(dh::NODDofHandler, u::Vector, fieldname::Symbol)
+    return Ferrite._evaluate_at_grid_nodes(dh, u, fieldname)
+end
+
+# NOTE - REDUNDANT?
+function Ferrite._evaluate_at_grid_nodes(dh::NODDofHandler, u::Vector{T}, fieldname::Symbol, ::Val{vtk}=Val(false)) where {T, vtk}
+    # Make sure the field exists
+    fieldname ∈ getfieldnames(dh) || error("Field $fieldname not found.")
+    # Figure out the return type (scalar or vector)
+    field_idx = find_field(dh, fieldname)
+    ip = getfieldinterpolation(dh, field_idx)
+    RT = ip isa ScalarInterpolation ? T : Vec{n_components(ip),T}
+    if vtk
+        # VTK output of solution field (or L2 projected scalar data)
+        n_c = n_components(ip)
+        vtk_dim = n_c == 2 ? 3 : n_c # VTK wants vectors padded to 3D
+        data = fill(NaN * zero(T), vtk_dim, getnnodes(dh.grid))
+    else
+        # Just evalutation at grid nodes
+        data = fill(NaN * zero(RT), getnnodes(dh.grid))
+    end
+    # Loop over the fieldhandlers
+    # for fh in dh.fieldhandlers
+    fh = FieldHandler([Field(dh.field_names[i], dh.field_interpolations[i]) for i ∈ 1:length(dh.field_names)], Set(1:getncells(getgrid(dh)))) # TODO REMOVE THIS HOTFIX
+        # Check if this fh contains this field, otherwise continue to the next
+        field_idx = Ferrite.find_field(fh, fieldname)
+        # field_idx === nothing && continue
+        # Set up CellValues with the local node coords as quadrature points
+        CT = getcelltype(dh.grid, first(fh.cellset))
+        ip_geo = default_interpolation(CT)
+        local_node_coords = reference_coordinates(ip_geo)
+        qr = QuadratureRule{getrefshape(ip)}(zeros(length(local_node_coords)), local_node_coords)
+        ip = getfieldinterpolation(fh, field_idx)
+        if ip isa VectorizedInterpolation
+            # TODO: Remove this hack when embedding works...
+            cv = CellValues(qr, ip.ip, ip_geo)
+        else
+            cv = CellValues(qr, ip, ip_geo)
+        end
+        drange = dof_range(fh, fieldname)
+        # Function barrier
+        Ferrite._evaluate_at_grid_nodes!(data, dh, fh, u, cv, drange, RT)
+    # end
+    return data
+end
+
+# NOTE - REDUNDANT
+function Ferrite._evaluate_at_grid_nodes!(data::Union{Vector,Matrix}, dh::NODDofHandler, fh::FieldHandler,
+        u::Vector{T}, cv::CellValues, drange::UnitRange, ::Type{RT}) where {T, RT}
+    ue = zeros(T, length(drange))
+    # TODO: Remove this hack when embedding works...
+    if RT <: Vec && cv isa CellValues{<:ScalarInterpolation}
+        uer = reinterpret(RT, ue)
+    else
+        uer = ue
+    end
+    for cell in CellIterator(dh, fh.cellset)
+        # Note: We are only using the shape functions: no reinit!(cv, cell) necessary
+        @assert getnquadpoints(cv) == length(cell.nodes)
+        for (i, I) in pairs(drange)
+            ue[i] = u[cell.dofs[I]]
+        end
+        for (qp, nodeid) in pairs(cell.nodes)
+            val = function_value(cv, qp, uer)
+            if data isa Matrix # VTK
+                data[1:length(val), nodeid] .= val
+                data[(length(val)+1):end, nodeid] .= 0 # purge the NaN
+            else
+                data[nodeid] = val
+            end
+        end
+    end
+    return data
 end

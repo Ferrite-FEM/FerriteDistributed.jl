@@ -17,12 +17,14 @@
 using FerriteDistributed
 using HYPRE, Metis
 
+import FerriteDistributed: getglobalgrid, global_comm, local_dof_range #TODO REMOVE THIS
+
 # Launch MPI and HYPRE
 MPI.Init()
 HYPRE.Init()
 
 # We start generating a simple grid with 20x20 quadrilateral elements
-# and distribute it across our processors using `generate_distributed_grid`. 
+# and distribute it across our processors using `generate_distributed_grid`.
 # dgrid = FerriteMPI.generate_distributed_grid(QuadraticQuadrilateral, (3, 1));
 # dgrid = FerriteMPI.generate_distributed_grid(Tetrahedron, (2, 2, 2));
 dgrid = generate_nod_grid(MPI.COMM_WORLD, Hexahedron, (10, 10, 10); partitioning_alg=FerriteDistributed.PartitioningAlgorithm.Metis(:RECURSIVE)); #src
@@ -42,7 +44,7 @@ qr = QuadratureRule{dim, ref}(4) #src
 cellvalues = CellValues(qr, ip, ip_geo);
 
 # ### Degrees of freedom
-# To handle the dofs correctly we now utilize the `DistributedDofHandle` 
+# To handle the dofs correctly we now utilize the `DistributedDofHandle`
 # instead of the `DofHandler`. For the user the interface is the same.
 dh = DofHandler(dgrid)
 push!(dh, :u, 1, ip)
@@ -56,26 +58,26 @@ ch = ConstraintHandler(dh);
 dbc = Dirichlet(:u, ∂Ω, (x, t) -> 0)
 dbc_val = 0 #src
 dbc = Dirichlet(:u, ∂Ω, (x, t) -> dbc_val) #src
-add!(ch, dbc);
+# add!(ch, dbc);
 close!(ch)
 
 # ### Assembling the linear system
 # Assembling the system works also mostly analogue.
-function doassemble(cellvalues::CellScalarValues{dim}, dh::FerriteMPI.DistributedDofHandler, ch::ConstraintHandler) where {dim}
+function doassemble(cellvalues::CellValues, dh::FerriteDistributed.NODDofHandler{dim}, ch::ConstraintHandler) where {dim}
     n_basefuncs = getnbasefunctions(cellvalues)
     Ke = zeros(n_basefuncs, n_basefuncs)
     fe = zeros(n_basefuncs)
 
     # --------------------- Distributed assembly --------------------
-    # The synchronization with the global sparse matrix is handled by 
+    # The synchronization with the global sparse matrix is handled by
     # an assembler again. You can choose from different backends, which
     # are described in the docs and will be expaned over time. This call
     # may trigger a large amount of communication.
 
     # TODO how to put this into an interface.
-    dgrid = FerriteMPI.getglobalgrid(dh)
-    comm = FerriteMPI.global_comm(dgrid)
-    ldofrange = FerriteMPI.local_dof_range(dh)
+    dgrid = getglobalgrid(dh)
+    comm = global_comm(dgrid)
+    ldofrange = local_dof_range(dh)
     K = HYPREMatrix(comm, first(ldofrange), last(ldofrange))
     f = HYPREVector(comm, first(ldofrange), last(ldofrange))
 
@@ -88,10 +90,10 @@ function doassemble(cellvalues::CellScalarValues{dim}, dh::FerriteMPI.Distribute
 
         reinit!(cellvalues, cell)
         coords = getcoordinates(cell)
-                
+
         for q_point in 1:getnquadpoints(cellvalues)
             dΩ = getdetJdV(cellvalues, q_point)
-            
+
             for i in 1:n_basefuncs
                 v  = shape_value(cellvalues, q_point, i)
                 ∇v = shape_gradient(cellvalues, q_point, i)
@@ -107,7 +109,7 @@ function doassemble(cellvalues::CellScalarValues{dim}, dh::FerriteMPI.Distribute
         end
 
         apply_local!(Ke, fe, celldofs(cell), ch)
-        
+
         # TODO how to put this into an interface.
         Ferrite.assemble!(assembler, dh.ldof_to_gdof[celldofs(cell)], fe, Ke)
     end
@@ -130,7 +132,7 @@ solver = HYPRE.PCG(; Precond = precond)
 uh = HYPRE.solve(solver, K, f)
 
 # And convert from HYPRE to Ferrite
-u_local = Vector{Float64}(undef, FerriteMPI.num_local_dofs(dh))
+u_local = Vector{Float64}(undef, FerriteDistributed.num_local_dofs(dh))
 FerriteDistributed.extract_local_part!(u_local, uh, dh)
 
 # # ### Exporting via PVTK
@@ -138,8 +140,8 @@ FerriteDistributed.extract_local_part!(u_local, uh, dh)
 # # to a VTK-file, which can be viewed in e.g. [ParaView](https://www.paraview.org/).
 vtk_grid("heat_equation_distributed", dh) do vtk
     vtk_point_data(vtk, dh, u_local)
-    # For debugging purposes it can be helpful to enrich 
-    # the visualization with some meta  information about 
+    # For debugging purposes it can be helpful to enrich
+    # the visualization with some meta  information about
     # the grid and its partitioning
     vtk_shared_vertices(vtk, dgrid)
     vtk_shared_faces(vtk, dgrid)

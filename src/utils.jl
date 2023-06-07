@@ -7,7 +7,7 @@
     toglobal(grid::AbstractGrid, vertexidx::Vector{FaceIndex}) -> Vector{Tuple{Int}}
 This function takes the local face representation (a `FaceIndex`) and looks up the unique global id (a tuple of `Int`).
 """
-Ferrite.toglobal(grid::Ferrite.AbstractGrid,faceidx::Ferrite.FaceIndex) = Ferrite.sortface(Ferrite.faces(getcells(grid,faceidx[1]))[faceidx[2]])
+Ferrite.toglobal(grid::Ferrite.AbstractGrid,faceidx::Ferrite.FaceIndex) = Ferrite.sortface(faces(getcells(grid,faceidx[1]))[faceidx[2]])
 Ferrite.toglobal(grid::Ferrite.AbstractGrid,faceidx::Vector{FaceIndex}) = unique(Ferrite.toglobal.((grid,),faceidx))
 
 """
@@ -15,7 +15,7 @@ Ferrite.toglobal(grid::Ferrite.AbstractGrid,faceidx::Vector{FaceIndex}) = unique
     toglobal(grid::AbstractGrid, vertexidx::Vector{EdgeIndex}) -> Vector{Tuple{Int}}
 This function takes the local face representation (an `EdgeIndex`) and looks up the unique global id (a tuple of `Int`).
 """
-Ferrite.toglobal(grid::Ferrite.AbstractGrid,edgeidx::Ferrite.EdgeIndex) = Ferrite.sortedge(Ferrite.edges(getcells(grid,edgeidx[1]))[edgeidx[2]])[1]
+Ferrite.toglobal(grid::Ferrite.AbstractGrid,edgeidx::Ferrite.EdgeIndex) = Ferrite.sortedge(edges(getcells(grid,edgeidx[1]))[edgeidx[2]])[1]
 Ferrite.toglobal(grid::Ferrite.AbstractGrid,edgeidx::Vector{Ferrite.EdgeIndex}) = unique(toglobal.((grid,),edgeidx))
 
 
@@ -60,7 +60,7 @@ function vertex_dofs(dh::Ferrite.AbstractDofHandler, field_idx::Int, vertex::Ver
     fdim = getfielddim(dh, field_idx)
     cell,local_vertex_index = vertex
     cell_geo = getcells(getgrid(dh), cell)
-    nvertices = length(Ferrite.vertices(cell_geo))
+    nvertices = length(vertices(cell_geo))
     nentitydofs = fdim*nvdofs*nvertices
     ldofr = dof_range(dh, field_idx)[1:nentitydofs]
     vdofs = Ferrite.celldofs(dh, cell)[ldofr]
@@ -78,8 +78,8 @@ function edge_dofs(dh::Ferrite.AbstractDofHandler, field_idx::Int, edge::EdgeInd
     fdim = getfielddim(dh, field_idx)
     cell,local_edge_index = edge
     cell_geo = getcells(getgrid(dh), cell)
-    nedges_on_cell = length(Ferrite.edges(cell_geo))
-    nvertices_on_cell = length(Ferrite.vertices(cell_geo))
+    nedges_on_cell = length(edges(cell_geo))
+    nvertices_on_cell = length(vertices(cell_geo))
     nentitydofs = fdim*nedofs*nedges_on_cell
     offset = fdim*nvdofs*nvertices_on_cell
     edge_dofrange = dof_range(dh, field_idx)[(offset+1):(offset+nentitydofs)]
@@ -99,12 +99,12 @@ function face_dofs(dh::Ferrite.AbstractDofHandler, field_idx::Int, face::FaceInd
     fdim = getfielddim(dh, field_idx)
     cell,local_face_index = face
     cell_geo = getcells(getgrid(dh), cell)
-    nfaces_on_cell = length(Ferrite.faces(cell_geo))
-    nvertices_on_cell = length(Ferrite.vertices(cell_geo))
+    nfaces_on_cell = length(faces(cell_geo))
+    nvertices_on_cell = length(vertices(cell_geo))
     nentitydofs = fdim*nfacedofs(ip)*nfaces_on_cell
     offset = fdim*nvdofs*nvertices_on_cell
     if dim > 2
-        nedges_on_cell = length(Ferrite.edges(cell_geo))
+        nedges_on_cell = length(edges(cell_geo))
         nedofs = nedgedofs(ip)
         offset += fdim*nedofs*nedges_on_cell
     end
