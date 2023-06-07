@@ -29,26 +29,24 @@ end
     @test FerriteDistributed.global_nranks(dgrid) == 1
 end
 
-if VERSION >= v"1.10.0-DEV.90"
-    using Metis
-    @testset "Metis integration" begin
-        grid = generate_grid(Quadrilateral, (4,4))
-        dgrid = NODGrid(MPI.COMM_WORLD, grid, FerriteDistributed.PartitioningAlgorithm.Ext{Metis}(:RECURSIVE))
+using Metis
+@testset "Metis integration" begin
+    grid = generate_grid(Quadrilateral, (4,4))
+    dgrid = NODGrid(MPI.COMM_WORLD, grid, FerriteDistributed.PartitioningAlgorithm.Metis(:RECURSIVE))
 
-        @test isempty(get_shared_vertices(dgrid))
-        @test isempty(get_shared_edges(dgrid))
-        @test isempty(get_shared_faces(dgrid))
-        @test getvertexsets(getlocalgrid(dgrid)) == getvertexsets(grid)
-        @test getfacesets(getlocalgrid(dgrid)) == getfacesets(grid)
-        @test getcellsets(getlocalgrid(dgrid)) == getcellsets(grid)
-        @test getnnodes(getlocalgrid(dgrid) ) == getnnodes(grid)
-        @test getncells(getlocalgrid(dgrid) ) == getncells(grid)
+    @test isempty(get_shared_vertices(dgrid))
+    @test isempty(get_shared_edges(dgrid))
+    @test isempty(get_shared_faces(dgrid))
+    @test getvertexsets(getlocalgrid(dgrid)) == getvertexsets(grid)
+    @test getfacesets(getlocalgrid(dgrid)) == getfacesets(grid)
+    @test getcellsets(getlocalgrid(dgrid)) == getcellsets(grid)
+    @test getnnodes(getlocalgrid(dgrid) ) == getnnodes(grid)
+    @test getncells(getlocalgrid(dgrid) ) == getncells(grid)
 
-        @test FerriteDistributed.global_rank(dgrid) == 1
+    @test FerriteDistributed.global_rank(dgrid) == 1
 
-        @test FerriteDistributed.global_nranks(dgrid) == 1
-    end
-end # VERSION >= v"1.10.0-DEV.90"
+    @test FerriteDistributed.global_nranks(dgrid) == 1
+end
 
 # @testset "Dof stuff" begin
 #     # Consistency check for dof computation.
