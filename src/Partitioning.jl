@@ -13,14 +13,12 @@ module PartitioningAlgorithm
     struct SFC end
 
     """
-        PartitioningAlgorithm.Ext{T}
+        PartitioningAlgorithm.Metis
 
-    Partitioning algorithm from external package `T`. Currently supported extensions:
-    - None
+    Partitioning algorithm from the extension `FerriteDistributedMetisPartitioning`.
     """
-    abstract type Ext{T} end
-    function Ext{T}(args...; kwargs...) where T
-        throw(ArgumentError("Unknown external algorithm PartitioningAlgorithm.Ext{$T}. See documentation for `PartitioningAlgorithm.Ext` for details."))
+    struct Metis
+        alg::Symbol
     end
 end # module PartitioningAlgorithm
 
