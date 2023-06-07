@@ -15,8 +15,7 @@
 #
 # First we load Ferrite, and some other packages we need
 using FerriteDistributed
-using Metis
-using HYPRE
+using HYPRE, Metis
 
 # Launch MPI and HYPRE
 MPI.Init()
@@ -26,7 +25,7 @@ HYPRE.Init()
 # and distribute it across our processors using `generate_distributed_grid`. 
 # dgrid = FerriteMPI.generate_distributed_grid(QuadraticQuadrilateral, (3, 1));
 # dgrid = FerriteMPI.generate_distributed_grid(Tetrahedron, (2, 2, 2));
-dgrid = generate_nod_grid(MPI.COMM_WORLD, Hexahedron, (10, 10, 10)); #src
+dgrid = generate_nod_grid(MPI.COMM_WORLD, Hexahedron, (10, 10, 10); partitioning_alg=FerriteDistributed.PartitioningAlgorithm.Metis(:RECURSIVE)); #src
 # dgrid = FerriteMPI.generate_distributed_grid(Tetrahedron, (3, 3, 3)); #src
 
 # ### Trial and test functions
