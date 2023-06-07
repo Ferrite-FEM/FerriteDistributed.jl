@@ -141,3 +141,11 @@ Get the representative local grid containing only a vanilla local grid.
 
 @inline Ferrite.getvertexset(grid::AbstractNODGrid, setname::String) = getvertexset(getlocalgrid(grid), setname)
 @inline Ferrite.getvertexsets(grid::AbstractNODGrid) = getvertexset(getlocalgrid(grid), setname)
+
+"""
+    extract_local_part!(u_ferrite::Vector, u_extension, dh::Ferrite.AbstractDofHandler)
+
+Entry point for extensions to register a transfer function translating the solution representation of the extension 
+to a Ferrite compatible vector.
+"""
+extract_local_part!(u_ferrite::Vector, u_extension, dh::Ferrite.AbstractDofHandler) = error("Not implemented.")

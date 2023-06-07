@@ -1,5 +1,5 @@
 # Hypre to Ferrite vector
-function hypre_to_ferrite!(u::Vector{T}, uh::HYPREVector, dh::Ferrite.AbstractDofHandler) where {T}
+function FerriteDistributed.extract_local_part!(u::Vector{T}, uh::HYPREVector, dh::Ferrite.AbstractDofHandler) where {T}
     # Copy solution from HYPRE to Julia
     uj = Vector{Float64}(undef, num_local_true_dofs(dh))
     copy!(uj, uh)
