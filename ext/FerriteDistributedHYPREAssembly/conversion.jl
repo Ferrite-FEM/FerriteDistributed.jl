@@ -30,8 +30,8 @@ function FerriteDistributed.extract_local_part!(u::Vector{T}, uh::HYPREVector, d
         lvi = sv.local_idx
         my_rank != compute_owner(dgrid, sv) && continue
         for field_idx in 1:num_fields(dh)
-            if Ferrite.has_vertex_dofs(dh, field_idx, lvi)
-                local_dofs = Ferrite.vertex_dofs(dh, field_idx, lvi)
+            if has_vertex_dofs(dh, field_idx, lvi)
+                local_dofs = vertex_dofs(dh, field_idx, lvi)
                 global_dofs = dh.ldof_to_gdof[local_dofs]
                 for receiver_rank ∈ keys(remote_entities(sv))
                     for i ∈ 1:length(global_dofs)
@@ -47,8 +47,8 @@ function FerriteDistributed.extract_local_part!(u::Vector{T}, uh::HYPREVector, d
         lei = se.local_idx
         my_rank != compute_owner(dgrid, se) && continue
         for field_idx in 1:num_fields(dh)
-            if Ferrite.has_edge_dofs(dh, field_idx, lei)
-                local_dofs = Ferrite.edge_dofs(dh, field_idx, lei)
+            if has_edge_dofs(dh, field_idx, lei)
+                local_dofs = edge_dofs(dh, field_idx, lei)
                 global_dofs = dh.ldof_to_gdof[local_dofs]
                 for receiver_rank ∈ keys(remote_entities(se))
                     for i ∈ 1:length(global_dofs)
@@ -64,8 +64,8 @@ function FerriteDistributed.extract_local_part!(u::Vector{T}, uh::HYPREVector, d
         lfi = sf.local_idx
         my_rank != compute_owner(dgrid, sf) && continue
         for field_idx in 1:num_fields(dh)
-            if Ferrite.has_face_dofs(dh, field_idx, lfi)
-                local_dofs = Ferrite.face_dofs(dh, field_idx, lfi)
+            if has_face_dofs(dh, field_idx, lfi)
+                local_dofs = face_dofs(dh, field_idx, lfi)
                 global_dofs = dh.ldof_to_gdof[local_dofs]
                 for receiver_rank ∈ keys(remote_entities(sf))
                     for i ∈ 1:length(global_dofs)

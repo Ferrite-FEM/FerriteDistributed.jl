@@ -33,7 +33,7 @@ ref = RefHexahedron
 ip = Lagrange{ref, 2}()
 ip_geo = Lagrange{ref, 1}()
 qr = QuadratureRule{ref}(3)
-cellvalues = CellScalarValues(qr, ip, ip_geo);
+cellvalues = CellValues(qr, ip, ip_geo);
 
 # ### Degrees of freedom
 # Nothing changes here, too. The constructor takes care of creating the correct distributed dof handler.
