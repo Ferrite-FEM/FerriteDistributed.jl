@@ -1,4 +1,4 @@
-module FerriteNODGrid
+module FerriteDistributed
 
 using Ferrite, MPI
 
