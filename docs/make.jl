@@ -17,7 +17,8 @@ using FerriteDistributed
 include("generate.jl")
 
 GENERATEDEXAMPLES = [joinpath("examples", f) for f in (
-    "heat_equation.md",
+    "heat_equation_hypre.md",
+    "heat_equation_pa.md",
 )]
 
 makedocs(
