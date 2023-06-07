@@ -135,9 +135,9 @@ uh = HYPRE.solve(solver, K, f)
 u_local = Vector{Float64}(undef, FerriteDistributed.num_local_dofs(dh))
 FerriteDistributed.extract_local_part!(u_local, uh, dh)
 
-# # ### Exporting via PVTK
-# # To visualize the result we export the grid and our field `u`
-# # to a VTK-file, which can be viewed in e.g. [ParaView](https://www.paraview.org/).
+# ### Exporting via PVTK
+# To visualize the result we export the grid and our field `u`
+# to a VTK-file, which can be viewed in e.g. [ParaView](https://www.paraview.org/).
 vtk_grid("heat_equation_distributed", dh) do vtk
     vtk_point_data(vtk, dh, u_local)
     # For debugging purposes it can be helpful to enrich
