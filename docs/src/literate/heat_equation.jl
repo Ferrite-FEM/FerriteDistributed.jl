@@ -15,8 +15,8 @@
 #
 # First we load Ferrite, and some other packages we need
 using FerriteDistributed
-# using Metis
-using HYPRE # Loads HYPRE assembler
+using Metis
+using HYPRE
 
 # Launch MPI and HYPRE
 MPI.Init()
@@ -48,8 +48,6 @@ cellvalues = CellValues(qr, ip, ip_geo);
 dh = DofHandler(dgrid)
 push!(dh, :u, 1, ip)
 close!(dh);
-
-exit(0)
 
 # ### Boundary conditions
 # Nothing has to be changed here either.
