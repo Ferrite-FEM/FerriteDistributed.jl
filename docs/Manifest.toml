@@ -98,7 +98,7 @@ version = "0.3.14"
     BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
     Metis = "2679e427-3c69-5b7f-982b-ece356f1e94b"
 
-[[deps.FerriteNODGrid]]
+[[deps.FerriteDistributed]]
 deps = ["Ferrite", "MPI", "SparseArrays", "Tensors"]
 path = ".."
 uuid = "570c3397-5fe4-4792-be0d-48dbf0d14605"

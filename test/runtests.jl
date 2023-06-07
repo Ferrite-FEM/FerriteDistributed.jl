@@ -1,4 +1,4 @@
-using Ferrite, FerriteNODGrid, MPI
+using Ferrite, FerriteDistributed, MPI
 using Test
 
 MPI.Init()
@@ -10,7 +10,7 @@ end
 
 @testset "Grid construction nprocs=1" begin
     grid = generate_grid(Quadrilateral, (4,4))
-    partitioning = create_partitioning(grid, FerriteNODGrid.CoverTopology(grid), 4, FerriteNODGrid.PartitioningAlgorithm.SFC())
+    partitioning = create_partitioning(grid, FerriteDistributed.CoverTopology(grid), 4, FerriteDistributed.PartitioningAlgorithm.SFC())
     @test all(partitioning .== [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4])
 
     dgrid = NODGrid(MPI.COMM_WORLD, grid)
@@ -24,9 +24,9 @@ end
     @test getncells(getlocalgrid(dgrid) ) == getncells(grid)
 
     # Tests 1-based indexing!
-    @test FerriteNODGrid.global_rank(dgrid) == 1
+    @test FerriteDistributed.global_rank(dgrid) == 1
 
-    @test FerriteNODGrid.global_nranks(dgrid) == 1
+    @test FerriteDistributed.global_nranks(dgrid) == 1
 end
 
 #TODO MPI based test sets with more than 1 proc

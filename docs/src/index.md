@@ -1,8 +1,8 @@
 ```@meta
-DocTestSetup = :(using FerriteNODGrid)
+DocTestSetup = :(using FerriteDistributed)
 ```
 
-# FerriteNODGrid.jl
+# FerriteDistributed.jl
 
 Non-overlapping distributed grids for [Ferrite.jl](https://github.com/Ferrite-FEM/Ferrite.jl).
 
@@ -16,7 +16,7 @@ The usage of this package is straight forward. Either generate the non-overlappi
 
 ```julia
 using MPI
-using FerriteNODGrid
+using FerriteDistributed
 MPI.Init()
 dgrid = generate_nod_grid(MPI.COMM_WORLD, Quadrilateral, (100, 100))
 ```
@@ -25,10 +25,10 @@ or distribute your own grid
 
 ```julia
 using MPI
-using Ferrite, FerriteNODGrid
+using Ferrite, FerriteDistributed
 MPI.Init()
 grid = ...
-dgrid = NODGrid(MPI.COMM_WORLD, grid, FerriteNODGrid.PartitioningAlgorithm.SFC())
+dgrid = NODGrid(MPI.COMM_WORLD, grid, FerriteDistributed.PartitioningAlgorithm.SFC())
 ```
 
 for more details on the calls please consult the API docs.

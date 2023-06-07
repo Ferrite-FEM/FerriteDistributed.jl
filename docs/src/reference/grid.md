@@ -1,6 +1,6 @@
 ```@meta
-CurrentModule = FerriteNODGrid
-DocTestSetup = :(using FerriteNODGrid)
+CurrentModule = FerriteDistributed
+DocTestSetup = :(using FerriteDistributed)
 ```
 
 # NODGrid
@@ -9,13 +9,13 @@ DocTestSetup = :(using FerriteNODGrid)
 NODGrid
 NODGrid(::MPI.Comm, ::Grid)
 NODGrid(::MPI.Comm, ::Grid, ::CoverTopology, ::Vector{Int})
-FerriteNODGrid.SharedEntity
-FerriteNODGrid.SharedVertex
-FerriteNODGrid.SharedFace
-FerriteNODGrid.SharedEdge
-FerriteNODGrid.remote_entities
-FerriteNODGrid.global_comm
-FerriteNODGrid.interface_comm
-FerriteNODGrid.global_rank
-FerriteNODGrid.global_nranks
+FerriteDistributed.SharedEntity
+FerriteDistributed.SharedVertex
+FerriteDistributed.SharedFace
+FerriteDistributed.SharedEdge
+FerriteDistributed.remote_entities
+FerriteDistributed.global_comm
+FerriteDistributed.interface_comm
+FerriteDistributed.global_rank
+FerriteDistributed.global_nranks
 ```
