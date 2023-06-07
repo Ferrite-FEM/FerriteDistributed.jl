@@ -218,19 +218,19 @@ struct COOAssembler{T}
 
         # Communicate ghost information 👻
         # @TODO coalesce communication
-        ghost_send_buffer_dofs = vcat(ghost_dof_to_send...)
+        ghost_send_buffer_dofs = reduce(vcat, ghost_dof_to_send; init=Int[])
         ghost_recv_buffer_dofs = zeros(Int, sum(ghost_recv_buffer_lengths))
         MPI.Neighbor_alltoallv!(VBuffer(ghost_send_buffer_dofs,ghost_send_buffer_lengths), VBuffer(ghost_recv_buffer_dofs,ghost_recv_buffer_lengths), interface_comm(dgrid))
 
-        ghost_send_buffer_fields = vcat(ghost_dof_field_index_to_send...)
+        ghost_send_buffer_fields = reduce(vcat, ghost_dof_field_index_to_send; init=Int[])
         ghost_recv_buffer_fields = zeros(Int, sum(ghost_recv_buffer_lengths))
         MPI.Neighbor_alltoallv!(VBuffer(ghost_send_buffer_fields,ghost_send_buffer_lengths), VBuffer(ghost_recv_buffer_fields,ghost_recv_buffer_lengths), interface_comm(dgrid))
 
-        ghost_send_buffer_ranks = vcat(ghost_rank_to_send...)
+        ghost_send_buffer_ranks = reduce(vcat, ghost_rank_to_send; init=Int[])
         ghost_recv_buffer_ranks = zeros(Int, sum(ghost_recv_buffer_lengths))
         MPI.Neighbor_alltoallv!(VBuffer(ghost_send_buffer_ranks,ghost_send_buffer_lengths), VBuffer(ghost_recv_buffer_ranks,ghost_recv_buffer_lengths), interface_comm(dgrid))
 
-        ghost_send_buffer_dofs_piv = vcat(ghost_dof_pivot_to_send...)
+        ghost_send_buffer_dofs_piv = reduce(vcat, ghost_dof_pivot_to_send; init=Int[])
         ghost_recv_buffer_dofs_piv = zeros(Int, sum(ghost_recv_buffer_lengths))
         MPI.Neighbor_alltoallv!(VBuffer(ghost_send_buffer_dofs_piv,ghost_send_buffer_lengths), VBuffer(ghost_recv_buffer_dofs_piv,ghost_recv_buffer_lengths), interface_comm(dgrid))
 
