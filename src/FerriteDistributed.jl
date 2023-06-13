@@ -5,7 +5,7 @@ using Reexport
 
 # Common stuff from core
 import Ferrite: get_coordinate_eltype, ScalarWrapper, @debug,
-    nnodes_per_cell, n_components,
+    nnodes_per_cell, n_components, get_grid,
     BoundaryIndex, FaceIndex, EdgeIndex, CellIndex, VertexIndex,
     boundaryfunction, faces, edges, vertices,
     cellnodes!, cellcoords!,

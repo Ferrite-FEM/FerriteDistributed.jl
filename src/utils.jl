@@ -63,7 +63,7 @@ function vertex_dofs(dh::Ferrite.AbstractDofHandler, field_idx::Int, vertex::Ver
     nvdofs == 0 && return Int[]
     fdim = getfielddim(dh, field_idx)
     cell,local_vertex_index = vertex
-    cell_geo = getcells(getgrid(dh), cell)
+    cell_geo = getcells(get_grid(dh), cell)
     nvertices = length(vertices(cell_geo))
     nentitydofs = fdim*nvdofs*nvertices
     ldofr = dof_range(dh, field_idx)[1:nentitydofs]
@@ -81,7 +81,7 @@ function edge_dofs(dh::Ferrite.AbstractDofHandler, field_idx::Int, edge::EdgeInd
     nvdofs = nvertexdofs(ip)
     fdim = getfielddim(dh, field_idx)
     cell,local_edge_index = edge
-    cell_geo = getcells(getgrid(dh), cell)
+    cell_geo = getcells(get_grid(dh), cell)
     nedges_on_cell = length(edges(cell_geo))
     nvertices_on_cell = length(vertices(cell_geo))
     nentitydofs = fdim*nedofs*nedges_on_cell
@@ -102,7 +102,7 @@ function face_dofs(dh::Ferrite.AbstractDofHandler, field_idx::Int, face::FaceInd
     nvdofs = nvertexdofs(ip)
     fdim = getfielddim(dh, field_idx)
     cell,local_face_index = face
-    cell_geo = getcells(getgrid(dh), cell)
+    cell_geo = getcells(get_grid(dh), cell)
     nfaces_on_cell = length(faces(cell_geo))
     nvertices_on_cell = length(vertices(cell_geo))
     nentitydofs = fdim*nfacedofs(ip)*nfaces_on_cell

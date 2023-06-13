@@ -31,9 +31,9 @@ end
 # NOTE - REDUNDANT
 Ferrite.getfieldnames(dh::NODDofHandler) = dh.field_names
 # NOTE - REDUNDANT
-Ferrite.nnodes_per_cell(dh::NODDofHandler, cell::Int=1) = Ferrite.nnodes_per_cell(getgrid(dh), cell)
+Ferrite.nnodes_per_cell(dh::NODDofHandler, cell::Int=1) = Ferrite.nnodes_per_cell(get_grid(dh), cell)
 # NOTE - REDUNDANT
-function Ferrite.add!(dh::NODDofHandler, name::Symbol, dim::Int, ip::Interpolation=default_interpolation(getcelltype(getgrid(dh))))
+function Ferrite.add!(dh::NODDofHandler, name::Symbol, dim::Int, ip::Interpolation=default_interpolation(getcelltype(get_grid(dh))))
     @assert !Ferrite.isclosed(dh)
     @assert !in(name, dh.field_names)
     push!(dh.field_names, name)
@@ -146,7 +146,7 @@ getlocalgrid(dh::NODDofHandler) = getlocalgrid(dh.grid)
 getglobalgrid(dh::NODDofHandler) = dh.grid
 
 # Compat layer against serial code
-Ferrite.getgrid(dh::NODDofHandler) = getlocalgrid(dh)
+Ferrite.get_grid(dh::NODDofHandler) = getlocalgrid(dh)
 
 # TODO problem here is that the reorder has to be synchronized. We also cannot arbitrary reorder dofs, 
 # because some distributed matrix data structures have strict requirements on the orderings.
@@ -244,7 +244,7 @@ function local_to_global_numbering(dh::NODDofHandler{dim}) where {dim}
     # * All other entities: All cells for which one of the corresponding entities interior intersects 
     #                       with the interior of the entity in question.
     next_local_idx = 1
-    for (ci, cell) in enumerate(getcells(getgrid(dh)))
+    for (ci, cell) in enumerate(getcells(get_grid(dh)))
         Ferrite.@debug println("cell #$ci (R$my_rank)")
         for field_idx in 1:num_fields(dh)
             Ferrite.@debug println("  field: $(dh.field_names[field_idx]) (R$my_rank)")
@@ -727,7 +727,7 @@ function Ferrite.__close!(dh::NODDofHandler{dim}) where {dim}
     push!(dh.cell_dofs_offset, 1) # dofs for the first cell start at 1
 
     # loop over all the cells, and distribute dofs for all the fields
-    for (ci, cell) in enumerate(getcells(getgrid(dh)))
+    for (ci, cell) in enumerate(getcells(get_grid(dh)))
         @debug println("cell #$ci")
         for fi in 1:num_fields(dh)
             interpolation_info = interpolation_infos[fi]
@@ -845,12 +845,12 @@ end
 
 # NOTE - REDUNDANT
 function Ferrite.CellCache(dh::NODDofHandler{dim}, flags::UpdateFlags=UpdateFlags()) where {dim}
-    N = Ferrite.nnodes_per_cell(getgrid(dh))
+    N = Ferrite.nnodes_per_cell(get_grid(dh))
     nodes = zeros(Int, N)
-    coords = zeros(Vec{dim, get_coordinate_eltype(getgrid(dh))}, N)
+    coords = zeros(Vec{dim, get_coordinate_eltype(get_grid(dh))}, N)
     n = ndofs_per_cell(dh)
     celldofs = zeros(Int, n)
-    return Ferrite.CellCache(flags, getgrid(dh), ScalarWrapper(-1), nodes, coords, dh, celldofs)
+    return Ferrite.CellCache(flags, get_grid(dh), ScalarWrapper(-1), nodes, coords, dh, celldofs)
 end
 
 # NOTE - REDUNDANT
@@ -877,7 +877,7 @@ function Ferrite._evaluate_at_grid_nodes(dh::NODDofHandler, u::Vector{T}, fieldn
     end
     # Loop over the fieldhandlers
     # for fh in dh.fieldhandlers
-    fh = FieldHandler([Field(dh.field_names[i], dh.field_interpolations[i]) for i ∈ 1:length(dh.field_names)], Set(1:getncells(getgrid(dh)))) # TODO REMOVE THIS HOTFIX
+    fh = FieldHandler([Field(dh.field_names[i], dh.field_interpolations[i]) for i ∈ 1:length(dh.field_names)], Set(1:getncells(get_grid(dh)))) # TODO REMOVE THIS HOTFIX
         # Check if this fh contains this field, otherwise continue to the next
         field_idx = Ferrite.find_field(fh, fieldname)
         # field_idx === nothing && continue
@@ -934,7 +934,7 @@ function Ferrite.add!(ch::ConstraintHandler{DH}, dbc::Dirichlet) where {DH <: NO
     if length(dbc.faces) == 0
         @warn("adding Dirichlet Boundary Condition to set containing 0 entities")
     end
-    celltype = getcelltype(getgrid(ch.dh))
+    celltype = getcelltype(get_grid(ch.dh))
     @assert isconcretetype(celltype)
 
     # Extract stuff for the field
@@ -963,7 +963,7 @@ function Ferrite.add!(ch::ConstraintHandler{DH}, dbc::Dirichlet) where {DH <: NO
 end
 
 
-function _add!(ch::ConstraintHandler, dbc::Dirichlet, bcfaces::Set{Index}, interpolation::Interpolation, field_dim::Int, offset::Int, bcvalue::BCValues, cellset::Set{Int}=Set{Int}(1:getncells(getgrid(ch.dh)))) where {Index<:BoundaryIndex}
+function _add!(ch::ConstraintHandler, dbc::Dirichlet, bcfaces::Set{Index}, interpolation::Interpolation, field_dim::Int, offset::Int, bcvalue::BCValues, cellset::Set{Int}=Set{Int}(1:getncells(get_grid(ch.dh)))) where {Index<:BoundaryIndex}
     local_face_dofs, local_face_dofs_offset =
         _local_face_dofs_for_bc(interpolation, field_dim, dbc.components, offset, boundaryfunction(eltype(bcfaces)))
     copy!(dbc.local_face_dofs, local_face_dofs)
