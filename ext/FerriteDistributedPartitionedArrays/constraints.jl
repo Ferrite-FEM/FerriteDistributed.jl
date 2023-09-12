@@ -1,14 +1,13 @@
 function Ferrite.meandiag(K::PartitionedArrays.PSparseMatrix)
     # Get local portion of z
-    z_pa = map_parts(local_view(K, K.rows, K.cols)) do K_local
+    z_pa = map(local_values(K)) do K_local
         z = zero(eltype(K_local))
         for i in 1:size(K_local, 1)
             z += abs(K_local[i, i])
         end
         return z;
     end
-    # z = get_part(z_pa, MPI.Comm_rank(z_pa.comm)+1) # Crashes :)
-    return MPI.Allreduce(z_pa.part, MPI.SUM, z_pa.comm) / size(K, 1)
+    return PartitionedArrays.sum(z_pa) / size(K, 1)
 end
 
 """
@@ -16,11 +15,11 @@ Poor man's Dirichlet BC application for PartitionedArrays. :)
     TODO integrate with constraints.
 """
 function Ferrite.apply_zero!(K::PartitionedArrays.PSparseMatrix, f::PartitionedArrays.PVector, ch::ConstraintHandler)
-    map_parts(local_view(f, f.rows), f.rows.partition) do f_local, partition
+    map(local_values(f)) do f_local
         f_local[ch.prescribed_dofs] .= 0.0
     end
 
-    map_parts(local_view(K, K.rows, K.cols), local_view(f, f.rows)) do K_local, f_local
+    map(local_values(K), local_values(f)) do K_local, f_local
         for cdof in ch.prescribed_dofs
             K_local[cdof, :] .= 0.0
             K_local[:, cdof] .= 0.0
@@ -36,8 +35,8 @@ Poor man's Dirichlet BC application for PartitionedArrays. :)
 """
 function Ferrite.apply!(K::PartitionedArrays.PSparseMatrix, f::PartitionedArrays.PVector, ch::ConstraintHandler)
     # Start by substracting the inhomogeneous solution from the right hand side
-    u_constrained = PartitionedArrays.PVector(0.0, K.cols)
-    map_parts(local_view(u_constrained, u_constrained.rows)) do u_local
+    u_constrained = PartitionedArrays.pzeros(K.col_partition)
+    map(local_values(u_constrained)) do u_local
         u_local[ch.prescribed_dofs] .= ch.inhomogeneities
     end
     f .-= K*u_constrained
@@ -45,13 +44,13 @@ function Ferrite.apply!(K::PartitionedArrays.PSparseMatrix, f::PartitionedArrays
     m = Ferrite.meandiag(K)
 
     # Then fix the 
-    map_parts(local_view(f, f.rows), f.rows.partition) do f_local, partition
+    map(local_values(f), f.index_partition) do f_local, partition
         # Note: RHS only non-zero for owned RHS entries
-        f_local[ch.prescribed_dofs] .= ch.inhomogeneities .* map(p -> p == partition.part, partition.lid_to_part[ch.prescribed_dofs]) * m
+        f_local[ch.prescribed_dofs] .= ch.inhomogeneities .* map(p -> p == MPI.Comm_rank(f.cache.comm)+1, partition.local_to_owner[ch.prescribed_dofs]) * m
     end
 
     # Zero out locally visible rows and columns
-    map_parts(local_view(K, K.rows, K.cols)) do K_local
+    map(local_values(K)) do K_local
         for cdof ∈ ch.prescribed_dofs
             K_local[cdof, :] .= 0.0
             K_local[:, cdof] .= 0.0
@@ -64,32 +63,38 @@ function Ferrite.apply!(K::PartitionedArrays.PSparseMatrix, f::PartitionedArrays
     #      via the column information of the matrix.
 
     # Step 1: Send out all local ghosts to all other processes...
-    remote_ghost_gdofs, remote_ghost_parts = map_parts(K.cols.partition) do partition
-        remote_ghost_ldofs = partition.hid_to_lid
-        remote_ghost_parts = partition.lid_to_part[remote_ghost_ldofs]
-        remote_ghost_gdofs = partition.lid_to_gid[remote_ghost_ldofs]
-        return (remote_ghost_gdofs, remote_ghost_parts)
-    end
+    # remote_ghost_gdofs, remote_ghost_parts = map(K.col_partition) do partition
+        partition = K.col_partition.item_ref[]
+        remote_ghost_ldofs = partition.ghost_to_local
+        @show remote_ghost_ldofs
+        remote_ghost_parts = partition.local_to_owner[remote_ghost_ldofs]
+        @show remote_ghost_parts
+        remote_ghost_gdofs = partition.local_to_global[remote_ghost_ldofs]
+        @show remote_ghost_gdofs
+        # return (remote_ghost_gdofs, remote_ghost_parts)
+    # end
 
-    comm = remote_ghost_parts.comm
+    comm = f.cache.comm
     my_rank = MPI.Comm_rank(comm)+1
     buffer_sizes_send = zeros(Cint, MPI.Comm_size(comm))
     buffer_sizes_recv = Vector{Cint}(undef, MPI.Comm_size(comm))
-    for part ∈ remote_ghost_parts.part
-        buffer_sizes_send[part] += 1
-    end
+    # map(remote_ghost_parts) do remote_ghost_parts_local
+        for part ∈ remote_ghost_parts
+            buffer_sizes_send[part] += 1
+        end
+    # end
     MPI.Alltoall!(UBuffer(buffer_sizes_send, 1), UBuffer(buffer_sizes_recv, 1), comm)
     Ferrite.@debug println("Got $buffer_sizes_recv (R$my_rank)")
 
     remote_ghosts_recv = Vector{Int}(undef, sum(buffer_sizes_recv))
-    MPI.Alltoallv!(VBuffer(remote_ghost_gdofs.part, buffer_sizes_send), VBuffer(remote_ghosts_recv, buffer_sizes_recv), comm)
+    MPI.Alltoallv!(VBuffer(remote_ghost_gdofs, buffer_sizes_send), VBuffer(remote_ghosts_recv, buffer_sizes_recv), comm)
     Ferrite.@debug println("Got $remote_ghosts_recv (R$my_rank)")
 
     # Step 2: Union with all locally constrained dofs
     Ferrite.@debug println("$my_rank : Step 2....")
     remote_ghosts_constrained_send = copy(remote_ghosts_recv)
     for (i, remote_ghost_dof) ∈ enumerate(remote_ghosts_recv)
-        remote_ghosts_constrained_send[i] = remote_ghost_dof ∈ K.cols.partition.part.lid_to_gid[ch.prescribed_dofs]
+        remote_ghosts_constrained_send[i] = remote_ghost_dof ∈ partition.local_to_global[ch.prescribed_dofs]
     end
 
     # Step 3: Send trash back
@@ -97,11 +102,11 @@ function Ferrite.apply!(K::PartitionedArrays.PSparseMatrix, f::PartitionedArrays
     remote_ghosts_constrained_recv = Vector{Int}(undef, sum(buffer_sizes_send))
     MPI.Alltoallv!(VBuffer(remote_ghosts_constrained_send, buffer_sizes_recv), VBuffer(remote_ghosts_constrained_recv, buffer_sizes_send), comm)
 
-    Ferrite.@debug println("$my_rank : remote constraints on $(remote_ghost_gdofs.part[remote_ghosts_constrained_recv .== 1])")
+    Ferrite.@debug println("$my_rank : remote constraints on $(remote_ghost_ldofs[remote_ghosts_constrained_recv .== 1])")
 
     # Step 4: Constrain remaining columns
-    map_parts(local_view(K, K.rows, K.cols), K.cols.partition) do K_local, partition
-        for cdof ∈ partition.hid_to_lid[remote_ghosts_constrained_recv .== 1]
+    map(local_values(K)) do K_local
+        for cdof ∈ remote_ghost_ldofs[remote_ghosts_constrained_recv .== 1]
             K_local[:, cdof] .= 0.0
         end
     end

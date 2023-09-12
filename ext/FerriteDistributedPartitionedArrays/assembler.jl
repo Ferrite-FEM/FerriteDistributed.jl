@@ -66,7 +66,7 @@ struct COOAssembler{T}
         end
 
         # Note: We assume a symmetric neighborhood for now... this may not be true in general.
-        neighbors = MPIData(Int32.(sources), comm, (np,))
+        # neighbors = MPIData(Int32.(sources), comm, (np,))
 
         # Extract locally owned dofs
         ltdof_indices = ldof_to_rank.==my_rank
@@ -81,10 +81,12 @@ struct COOAssembler{T}
         # distributed matrix.
         # We decide for row (i.e. test function) ownership, because it the image of
         # SpMV is process local.
-        row_indices = PartitionedArrays.IndexSet(my_rank, ldof_to_gdof, Int32.(ldof_to_rank))
-        row_data = MPIData(row_indices, comm, (np,))
-        row_exchanger = Exchanger(row_data)
-        rows = PRange(ngdofs,row_data,row_exchanger)
+        # row_indices = PartitionedArrays.IndexSet(my_rank, ldof_to_gdof, Int32.(ldof_to_rank))
+        # row_data = MPIData(row_indices, comm, (np,))
+        # row_exchanger = Exchanger(row_data)
+        # rows = PRange(ngdofs,row_data,row_exchanger)
+        row_partition_indices = PartitionedArrays.LocalIndices(ngdofs, Int32(my_rank), ldof_to_gdof, Int32.(ldof_to_rank))
+        rows = MPIArray(row_partition_indices, comm, (np,))
 
         Ferrite.@debug println("rows done (R$my_rank)")
 
@@ -218,19 +220,19 @@ struct COOAssembler{T}
 
         # Communicate ghost information 👻
         # @TODO coalesce communication
-        ghost_send_buffer_dofs = vcat(ghost_dof_to_send...)
+        ghost_send_buffer_dofs = reduce(vcat, ghost_dof_to_send; init=Int[])
         ghost_recv_buffer_dofs = zeros(Int, sum(ghost_recv_buffer_lengths))
         MPI.Neighbor_alltoallv!(VBuffer(ghost_send_buffer_dofs,ghost_send_buffer_lengths), VBuffer(ghost_recv_buffer_dofs,ghost_recv_buffer_lengths), interface_comm(dgrid))
 
-        ghost_send_buffer_fields = vcat(ghost_dof_field_index_to_send...)
+        ghost_send_buffer_fields = reduce(vcat, ghost_dof_field_index_to_send; init=Int[])
         ghost_recv_buffer_fields = zeros(Int, sum(ghost_recv_buffer_lengths))
         MPI.Neighbor_alltoallv!(VBuffer(ghost_send_buffer_fields,ghost_send_buffer_lengths), VBuffer(ghost_recv_buffer_fields,ghost_recv_buffer_lengths), interface_comm(dgrid))
 
-        ghost_send_buffer_ranks = vcat(ghost_rank_to_send...)
+        ghost_send_buffer_ranks = reduce(vcat, ghost_rank_to_send; init=Int[])
         ghost_recv_buffer_ranks = zeros(Int, sum(ghost_recv_buffer_lengths))
         MPI.Neighbor_alltoallv!(VBuffer(ghost_send_buffer_ranks,ghost_send_buffer_lengths), VBuffer(ghost_recv_buffer_ranks,ghost_recv_buffer_lengths), interface_comm(dgrid))
 
-        ghost_send_buffer_dofs_piv = vcat(ghost_dof_pivot_to_send...)
+        ghost_send_buffer_dofs_piv = reduce(vcat, ghost_dof_pivot_to_send; init=Int[])
         ghost_recv_buffer_dofs_piv = zeros(Int, sum(ghost_recv_buffer_lengths))
         MPI.Neighbor_alltoallv!(VBuffer(ghost_send_buffer_dofs_piv,ghost_send_buffer_lengths), VBuffer(ghost_recv_buffer_dofs_piv,ghost_recv_buffer_lengths), interface_comm(dgrid))
 
@@ -257,13 +259,15 @@ struct COOAssembler{T}
         Ferrite.@debug println("all_local_cols $all_local_cols (R$my_rank)")
         Ferrite.@debug println("all_local_col_ranks $all_local_col_ranks (R$my_rank)")
 
-        col_indices = PartitionedArrays.IndexSet(my_rank, all_local_cols, all_local_col_ranks)
-        col_data = MPIData(col_indices, comm, (np,))
-        col_exchanger = Exchanger(col_data)
-        cols = PRange(ngdofs,col_data,col_exchanger)
+        # col_indices = PartitionedArrays.IndexSet(my_rank, all_local_cols, all_local_col_ranks)
+        # col_data = MPIData(col_indices, comm, (np,))
+        # col_exchanger = Exchanger(col_data)
+        # cols = PRange(ngdofs,col_data,col_exchanger)
+        col_partition_indices = PartitionedArrays.LocalIndices(ngdofs, Int32(my_rank), all_local_cols, all_local_col_ranks)
+        cols = MPIArray(col_partition_indices, comm, (np,))
 
         Ferrite.@debug println("cols and rows constructed (R$my_rank)")
-        f = PartitionedArrays.PVector(0.0,rows)
+        f = pzeros(rows)
         Ferrite.@debug println("f constructed (R$my_rank)")
 
         👻remotes = zip(ghost_recv_buffer_dofs_piv, ghost_recv_buffer_dofs, ghost_recv_buffer_ranks,ghost_recv_buffer_fields)
@@ -274,8 +278,8 @@ struct COOAssembler{T}
 end
 
 # TODO fix type
-# Ferrite.start_assemble(dh::FerriteMPI.DistributedDofHandler, _::MPIBackend) = COOAssembler{Float64}(dh)
-Ferrite.start_assemble(dh, _::MPIBackend) = COOAssembler{Float64}(dh)
+# Ferrite.start_assemble(dh::FerriteMPI.DistributedDofHandler, _::MPIArray) = COOAssembler{Float64}(dh)
+Ferrite.start_assemble(dh, _::MPIArray) = COOAssembler{Float64}(dh)
 
 @propagate_inbounds function Ferrite.assemble!(a::COOAssembler{T}, edof::AbstractVector{Int}, Ke::AbstractMatrix{T}) where {T}
     n_dofs = length(edof)
@@ -290,7 +294,7 @@ end
 
 @propagate_inbounds function Ferrite.assemble!(a::COOAssembler{T}, dofs::AbstractVector{Int}, fe::AbstractVector{T}, Ke::AbstractMatrix{T}) where {T}
     Ferrite.assemble!(a, dofs, Ke)
-    map_parts(local_view(a.f, a.f.rows)) do f_local
+    map(local_values(a.f)) do f_local
         Ferrite.assemble!(f_local, dofs, fe)
     end
 end
@@ -321,15 +325,18 @@ function Ferrite.end_assemble(assembler::COOAssembler{T}) where {T}
 
     Ferrite.@debug println("I=$(I) (R$my_rank)")
     Ferrite.@debug println("J=$(J) (R$my_rank)")
-    K = PartitionedArrays.PSparseMatrix(
-        MPIData(I, comm, (np,)),
-        MPIData(J, comm, (np,)),
-        MPIData(V, comm, (np,)),
-        assembler.rows, assembler.cols, ids=:global
-    )
+    K = PartitionedArrays.psparse!(
+        MPIArray(I, comm, (np,)),
+        MPIArray(J, comm, (np,)),
+        MPIArray(V, comm, (np,)),
+        assembler.rows, assembler.cols
+        ;discover_rows=false,discover_cols=false
+    ) |> fetch
 
-    PartitionedArrays.assemble!(K)
-    PartitionedArrays.assemble!(assembler.f)
+    PartitionedArrays.assemble!(K) |> wait
+    # PartitionedArrays.consistent!(K) |> wait
+    PartitionedArrays.assemble!(assembler.f) |> wait
+    # PartitionedArrays.consistent!(assembler.f) |> wait
 
     return K, assembler.f
 end

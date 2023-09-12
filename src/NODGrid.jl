@@ -1,5 +1,5 @@
 """
-    NODGrid{dim,C<:Ferrite.AbstractCell,T<:Real} <: AbstractNODGrid{dim}
+    NODGrid{dim,C<:AbstractCell,T<:Real} <: AbstractNODGrid{dim}
 
 Scalable non-overlapping distributed grid. This data structure is composed of a
 `local_grid` and full topological information on the process boundary, i.e.
@@ -8,7 +8,7 @@ how vertices, edges and faces are connectedted between processes.
 !!! todo
     PartitionedArrays.jl ready constructor via extension
 """
-mutable struct NODGrid{dim,C<:Ferrite.AbstractCell,T<:Real} <: AbstractNODGrid{dim}
+mutable struct NODGrid{dim,C<:AbstractCell,T<:Real} <: AbstractNODGrid{dim}
     # Dense comminicator on the grid
     grid_comm::MPI.Comm
     # Sparse communicator along the shared vertex neighbors
@@ -61,17 +61,17 @@ It is assumed that this function is called with exactly the same grid on each MP
 function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, alg = PartitioningAlgorithm.SFC()) where {dim,C,T}
     grid_topology = CoverTopology(grid_to_distribute)
     nparts = MPI.Comm_size(grid_comm)
-    partitioning = create_partitioning(grid_to_distribute, grid_topology, nparts, PartitioningAlgorithm.SFC())
+    partitioning = create_partitioning(grid_to_distribute, grid_topology, nparts, alg)
     NODGrid(grid_comm, grid_to_distribute, grid_topology, partitioning)
 end
 
 """
-    NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_topology::CoverTopology, partitioning::Vector{Int})
+    NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_topology::CoverTopology, partitioning::Vector{<:Integer})
 
 Construct a non-overlapping distributed grid from a grid with given topology and partitioning on a specified MPI communicator.
 
 """    
-function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_topology::CoverTopology, partitioning::Vector{Int}) where {dim,C,T}
+function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_topology::CoverTopology, partitioning::Vector{<:Integer}) where {dim,C,T}
     n_cells_global = getncells(grid_to_distribute)
     @assert n_cells_global > 0 "Please provide a non-empty input mesh."
 
@@ -302,6 +302,7 @@ end
 
 Helper to directly generate non-overlapping distributed grids, designed to replace the call to [`generate_grid`](@ref) for use in distributed environments.
 """
-function generate_nod_grid(comm::MPI.Comm, args...)
-    return NODGrid(comm, generate_grid(args...))
+function generate_nod_grid(comm::MPI.Comm, args...; partitioning_alg=PartitioningAlgorithm.SFC())
+    full_grid = generate_grid(args...)
+    return NODGrid(comm, full_grid, partitioning_alg)
 end
