@@ -8,109 +8,159 @@ neighborhood is a set of similar entities which fully cover each other.
 
 !!! TODO move to Ferrite core?
 """
-struct CoverTopology <: Ferrite.AbstractTopology
+struct CoverTopology <: AbstractTopology
     # maps a global vertex id to all cells containing the vertex
-    vertex_to_cell::Dict{Int,Vector{Int}}
+    vertex_to_cell::Vector{Set{Int}}
     # index of the vector = cell id ->  all other connected cells
-    cell_neighbor::Vector{Ferrite.EntityNeighborhood{CellIndex}}
-    # face_neighbor[cellid,local_face_id] -> exclusive connected entities (not restricted to one entity)
-    face_neighbor::SparseMatrixCSC{Ferrite.EntityNeighborhood,Int}
-    # vertex_neighbor[cellid,local_vertex_id] -> exclusive connected entities to the given vertex
-    vertex_neighbor::SparseMatrixCSC{Ferrite.EntityNeighborhood,Int}
-    # edge_neighbor[cellid,local_edge_id] -> exclusive connected entities of the given edge
-    edge_neighbor::SparseMatrixCSC{Ferrite.EntityNeighborhood,Int}
+    cell_neighbor::Vector{EntityNeighborhood{CellIndex}}
+    # face_face_neighbor[cellid,local_face_id] -> exclusive connected entities (not restricted to one entity)
+    face_face_neighbor::Matrix{EntityNeighborhood{FaceIndex}}
+    # vertex_vertex_neighbor[cellid,local_vertex_id] -> exclusive connected entities to the given vertex
+    vertex_vertex_neighbor::Matrix{EntityNeighborhood{VertexIndex}}
+    # edge_edge_neighbor[cellid,local_edge_id] -> exclusive connected entities of the given edge
+    edge_edge_neighbor::Matrix{EntityNeighborhood{EdgeIndex}}
     # list of unique faces in the grid given as FaceIndex
-    face_skeleton::Vector{FaceIndex}
+    face_skeleton::Union{Vector{FaceIndex}, Nothing}
+end
+
+function Base.show(io::IO, ::MIME"text/plain", topology::CoverTopology)
+    println(io, "CoverTopology\n")
+    print(io, "  Vertex neighbors: $(size(topology.vertex_vertex_neighbor))\n")
+    print(io, "  Face neighbors: $(size(topology.face_face_neighbor))\n")
+    println(io, "  Edge neighbors: $(size(topology.edge_edge_neighbor))")
+end
+
+function _add_all_edge_neighbors!(edge_table, cell::C1, cell_id, cell_neighbor::C2, cell_neighbor_id) where {C1, C2}
+    for (lei, edge) ∈ enumerate(edges(cell))
+        uniqueedge = Ferrite.sortedge_fast(edge)
+        for (lei2, edge_neighbor) ∈ enumerate(edges(cell_neighbor))
+            uniqueedge2 = Ferrite.sortedge_fast(edge_neighbor)
+            if uniqueedge == uniqueedge2
+                push!(edge_table[cell_id, lei].neighbor_info, EdgeIndex(cell_neighbor_id, lei2))
+            end
+        end
+    end
+end
+
+function _cover_topology_ctor(cells::Vector{C}, vertex_cell_table::Array{Set{Int}}, vertex_table, face_table, edge_table, cell_neighbor_table) where C <: AbstractCell
+    for (cell_id, cell) in enumerate(cells)
+        # Gather all cells which are connected via vertices
+        cell_neighbor_ids = Set{Int}()
+        for vertex ∈ vertices(cell)
+            for vertex_cell_id ∈ vertex_cell_table[vertex]
+                if vertex_cell_id != cell_id
+                    push!(cell_neighbor_ids, vertex_cell_id)
+                end
+            end
+        end
+        cell_neighbor_table[cell_id] = EntityNeighborhood(CellIndex.(collect(cell_neighbor_ids)))
+
+        # Any of the neighbors is now sorted in the respective categories
+        for cell_neighbor_id ∈ cell_neighbor_ids
+            # Buffer neighbor
+            cell_neighbor = cells[cell_neighbor_id]
+            # TODO handle mixed-dimensional case
+            getdim(cell_neighbor) == getdim(cell) || continue
+
+            num_shared_vertices = Ferrite._num_shared_vertices(cell, cell_neighbor)
+
+            # Simplest case: Only one vertex is shared => Vertex neighbor
+            if num_shared_vertices >= 1
+                for (lvi, vertex) ∈ enumerate(vertices(cell))
+                    for (lvi2, vertex_neighbor) ∈ enumerate(vertices(cell_neighbor))
+                        if vertex_neighbor == vertex
+                            push!(vertex_table[cell_id, lvi].neighbor_info, VertexIndex(cell_neighbor_id, lvi2))
+                            break
+                        end
+                    end
+                end
+            end
+            # Shared path
+            if num_shared_vertices >= 2
+                if getdim(cell) == 2
+                    Ferrite._add_single_face_neighbor!(face_table, cell, cell_id, cell_neighbor, cell_neighbor_id)
+                elseif getdim(cell) == 3
+                    _add_all_edge_neighbors!(edge_table, cell, cell_id, cell_neighbor, cell_neighbor_id)
+                else
+                    @error "Case not implemented."
+                end
+            end
+            # Shared surface
+            if num_shared_vertices >= 3
+                Ferrite._add_single_face_neighbor!(face_table, cell, cell_id, cell_neighbor, cell_neighbor_id)
+            end
+            # Broken mesh?
+            if num_shared_vertices <= 0
+                @error "Found connected elements without shared vertex... Mesh broken?"
+            end
+        end
+    end
 end
 
 """
 """
 function CoverTopology(cells::Vector{C}) where C <: Ferrite.AbstractCell
-    cell_vertices_table = Ferrite.vertices.(cells) #needs generic interface for <: AbstractCell
-    vertex_cell_table = Dict{Int,Vector{Int}}()
+    # TODO REFACTOR ME BEGIN - Redudancy with ExclusiveTopology
+    # Setup the cell to vertex table
+    cell_vertices_table = vertices.(cells) #needs generic interface for <: AbstractCell
+    vertex_cell_table = Set{Int}[Set{Int}() for _ ∈ 1:maximum(maximum.(cell_vertices_table))]
 
-    for (cellid, cell_nodes) in enumerate(cell_vertices_table)
-       for node in cell_nodes
-            if haskey(vertex_cell_table, node)
-                push!(vertex_cell_table[node], cellid)
-            else
-                vertex_cell_table[node] = [cellid]
-            end
+    # Setup vertex to cell connectivity by flipping the cell to vertex table
+    for (cellid, cell_vertices) in enumerate(cell_vertices_table)
+        for vertex in cell_vertices
+            push!(vertex_cell_table[vertex], cellid)
         end
     end
 
-    I_face = Int[]; J_face = Int[]; V_face = Ferrite.EntityNeighborhood[]
-    I_edge = Int[]; J_edge = Int[]; V_edge = Ferrite.EntityNeighborhood[]
-    I_vertex = Int[]; J_vertex = Int[]; V_vertex = Ferrite.EntityNeighborhood[]
-    cell_neighbor_table = Vector{Ferrite.EntityNeighborhood{CellIndex}}(undef, length(cells))
+    # Compute correct matrix size
+    celltype = eltype(cells)
+    max_vertices = 0
+    max_faces = 0
+    max_edges = 0
+    if isconcretetype(celltype)
+        dim = getdim(cells[1])
 
-    for (cellid, cell) in enumerate(cells)
-        #cell neighborhood
-        cell_neighbors = getindex.((vertex_cell_table,), cell_vertices_table[cellid]) # cell -> vertex -> cell
-        cell_neighbors = unique(reduce(vcat,cell_neighbors)) # non unique list initially
-        filter!(x->x!=cellid, cell_neighbors) # get rid of self neighborhood
-        cell_neighbor_table[cellid] = Ferrite.EntityNeighborhood(CellIndex.(cell_neighbors))
+        max_vertices = nvertices(cells[1])
+        dim > 1 && (max_faces = nfaces(cells[1]))
+        dim > 2 && (max_edges = nedges(cells[1]))
+    else
+        celltypes = Set(typeof.(cells))
+        for celltype in celltypes
+            celltypeidx = findfirst(x->typeof(x)==celltype,cells)
+            dim = getdim(cells[celltypeidx])
 
-        for neighbor in cell_neighbors
-            neighbor_local_ids = findall(x->x in cell.nodes, cells[neighbor].nodes)
-            cell_local_ids = findall(x->x in cells[neighbor].nodes, cell.nodes)
-            # cells are connected via exactly one vertex
-            if length(cell_local_ids) == 1
-                Ferrite._vertex_neighbor!(V_vertex, I_vertex, J_vertex, cellid, cell, neighbor_local_ids, neighbor, cells[neighbor])
-            # cells are only connected via exactly one face
-            elseif length(cell_local_ids) == Ferrite.nvertices_on_face(cell, 1)
-                Ferrite._face_neighbor!(V_face, I_face, J_face, cellid, cell, neighbor_local_ids, neighbor, cells[neighbor])
-                # Add edges on face
-                if Ferrite.getdim(cell) > 2
-                    for cell_edge_nodes ∈ Ferrite.edges(cell)
-                        neighbor_edge_local_ids = findall(x->x ∈ cell_edge_nodes, cells[neighbor].nodes)
-                        if length(neighbor_edge_local_ids) == Ferrite.nvertices_on_edge(cell, 1)
-                            Ferrite._edge_neighbor!(V_edge, I_edge, J_edge, cellid, cell, neighbor_edge_local_ids, neighbor, cells[neighbor])
-                        end
-                    end
-                end
-                # Add vertices on face
-                for cell_vertex_node ∈ Ferrite.vertices(cell)
-                    neighbor_vertex_local_id = findall(x->x == cell_vertex_node, cells[neighbor].nodes)
-                    if length(neighbor_vertex_local_id) == 1
-                        Ferrite._vertex_neighbor!(V_vertex, I_vertex, J_vertex, cellid, cell, neighbor_vertex_local_id, neighbor, cells[neighbor])
-                    end
-                end
-            # cells are only connected via exactly one edge
-            elseif Ferrite.getdim(cell) > 2 && length(cell_local_ids) == Ferrite.nvertices_on_edge(cell, 1)
-                Ferrite._edge_neighbor!(V_edge, I_edge, J_edge, cellid, cell, neighbor_local_ids, neighbor, cells[neighbor])
-                # Add vertices on edge
-                for cell_vertex_nodes ∈ Ferrite.vertices(cell)
-                    neighbor_vertex_local_id = findall(x->x == cell_vertex_nodes, cells[neighbor].nodes)
-                    if length(neighbor_vertex_local_id) == 1
-                        Ferrite._vertex_neighbor!(V_vertex, I_vertex, J_vertex, cellid, cell, neighbor_vertex_local_id, neighbor, cells[neighbor])
-                    end
-                end
-            end
+            max_vertices = max(max_vertices,nvertices(cells[celltypeidx]))
+            dim > 1 && (max_faces = max(max_faces, nfaces(cells[celltypeidx])))
+            dim > 2 && (max_edges = max(max_edges, nedges(cells[celltypeidx])))
         end
     end
 
-    face_neighbor = sparse(I_face,J_face,V_face)
-    vertex_neighbor = sparse(I_vertex,J_vertex,V_vertex)
-    edge_neighbor = sparse(I_edge,J_edge,V_edge)
-
-    # Face Skeleton
-    face_skeleton_global = Set{NTuple}()
-    face_skeleton_local = Vector{FaceIndex}()
-    fs_length = length(face_skeleton_global)
-    for (cellid,cell) in enumerate(cells)
-        for (local_face_id,face) in enumerate(Ferrite.faces(cell))
-            push!(face_skeleton_global, first(Ferrite.sortface(face)))
-            fs_length_new = length(face_skeleton_global)
-            if fs_length != fs_length_new
-                push!(face_skeleton_local, FaceIndex(cellid,local_face_id))
-                fs_length = fs_length_new
-            end
+    # Setup matrices
+    vertex_table = Matrix{EntityNeighborhood{VertexIndex}}(undef, length(cells), max_vertices)
+    for j = 1:size(vertex_table,2)
+        for i = 1:size(vertex_table,1)
+            vertex_table[i,j] = EntityNeighborhood{VertexIndex}(VertexIndex[])
         end
     end
-    return CoverTopology(vertex_cell_table,cell_neighbor_table,face_neighbor,vertex_neighbor,edge_neighbor,face_skeleton_local)
+    face_table   = Matrix{EntityNeighborhood{FaceIndex}}(undef, length(cells), max_faces)
+    for j = 1:size(face_table,2)
+        for i = 1:size(face_table,1)
+            face_table[i,j] = EntityNeighborhood{FaceIndex}(FaceIndex[])
+        end
+    end
+    edge_table   = Matrix{EntityNeighborhood{EdgeIndex}}(undef, length(cells), max_edges)
+    for j = 1:size(edge_table,2)
+        for i = 1:size(edge_table,1)
+            edge_table[i,j] = EntityNeighborhood{EdgeIndex}(EdgeIndex[])
+        end
+    end
+    cell_neighbor_table = Vector{EntityNeighborhood{CellIndex}}(undef, length(cells))
+    # TODO REFACTOR ME END - Redudancy with ExclusiveTopology
+    
+    _cover_topology_ctor(cells, vertex_cell_table, vertex_table, face_table, edge_table, cell_neighbor_table)
+    
+    return CoverTopology(vertex_cell_table,cell_neighbor_table,face_table,vertex_table,edge_table,nothing)
 end
-
 
 """
     getneighborhood(top::CoverTopology, grid::AbstractGrid, cellidx::CellIndex, include_self=false)
@@ -135,7 +185,7 @@ function Ferrite.getneighborhood(top::CoverTopology, grid::Ferrite.AbstractGrid,
 end
 
 function Ferrite.getneighborhood(top::CoverTopology, grid::Ferrite.AbstractGrid, faceidx::FaceIndex, include_self=false)
-    data = faceidx[2] <= size(top.face_neighbor, 2) ? top.face_neighbor[faceidx[1],faceidx[2]].neighbor_info : []
+    data = faceidx[2] <= size(top.face_face_neighbor, 2) ? top.face_face_neighbor[faceidx[1],faceidx[2]].neighbor_info : []
     if include_self
         return [data; faceidx]
     else
@@ -145,17 +195,17 @@ end
 
 function Ferrite.getneighborhood(top::CoverTopology, grid::Ferrite.AbstractGrid, vertexidx::VertexIndex, include_self=false)
     if include_self
-        return [top.vertex_neighbor[vertexidx[1], vertexidx[2]].neighbor_info; vertexidx]
+        return [top.vertex_vertex_neighbor[vertexidx[1], vertexidx[2]].neighbor_info; vertexidx]
     else
-        return top.vertex_neighbor[vertexidx[1], vertexidx[2]].neighbor_info
+        return top.vertex_vertex_neighbor[vertexidx[1], vertexidx[2]].neighbor_info
     end
 end
 
 function Ferrite.getneighborhood(top::CoverTopology, grid::Ferrite.AbstractGrid{3}, edgeidx::EdgeIndex, include_self=false)
     if include_self
-        return [top.edge_neighbor[edgeidx[1], edgeidx[2]].neighbor_info; edgeidx]
+        return [top.edge_edge_neighbor[edgeidx[1], edgeidx[2]].neighbor_info; edgeidx]
     else
-        return top.edge_neighbor[edgeidx[1], edgeidx[2]].neighbor_info
+        return top.edge_edge_neighbor[edgeidx[1], edgeidx[2]].neighbor_info
     end
 end
 

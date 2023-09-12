@@ -5,9 +5,10 @@ using Reexport
 
 # Common stuff from core
 import Ferrite: get_coordinate_eltype, ScalarWrapper, @debug,
-    nnodes_per_cell, n_components, get_grid,
+    nnodes_per_cell, n_components, get_grid, getdim,
     BoundaryIndex, FaceIndex, EdgeIndex, CellIndex, VertexIndex,
-    boundaryfunction, faces, edges, vertices,
+    AbstractTopology, EntityNeighborhood,
+    AbstractCell, boundaryfunction, faces, edges, vertices, nvertices, nfaces, nedges,
     cellnodes!, cellcoords!,
     getfieldnames, getfieldinterpolation, default_interpolation,
     reference_coordinates, value, getrefshape, dof_range, getfielddim,

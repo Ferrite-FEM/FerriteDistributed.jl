@@ -15,6 +15,8 @@ function WriteVTK.vtk_grid(filename::AbstractString, dgrid::AbstractNODGrid{dim}
     return pvtk_grid(filename, coords, cls; part=part, nparts=nparts, compress=compress)
 end
 
+WriteVTK.vtk_grid(filename::AbstractString, dh::NODDofHandler{dim}; kwargs...) where {dim} = vtk_grid(filename, dh.grid; kwargs...)
+
 """
 Enrich the VTK file with meta information about shared vertices.
 """

@@ -3,7 +3,7 @@
 
 Construct a `NODDofHandler` based on `grid`.
 
-Distributed version of [`DofHandler`](@docs). 
+Distributed version of [`DofHandler`](@docs) without subdomain support.
 
 Supports:
 - `Grid`s with a single concrete cell type.
@@ -835,7 +835,7 @@ function Ferrite.reinit!(cc::CellCache{<:Any,<:Ferrite.AbstractGrid,<:NODDofHand
         cellnodes!(cc.nodes, cc.grid, i)
     end
     if cc.flags.coords
-        cellcoords!(cc.coords, cc.grid, i)
+        getcoordinates!(cc.coords, cc.grid, i)
     end
     if cc.dh !== nothing && cc.flags.dofs
         celldofs!(cc.dofs, cc.dh, i)
@@ -875,33 +875,33 @@ function Ferrite._evaluate_at_grid_nodes(dh::NODDofHandler, u::Vector{T}, fieldn
         # Just evalutation at grid nodes
         data = fill(NaN * zero(RT), getnnodes(dh.grid))
     end
-    # Loop over the fieldhandlers
-    # for fh in dh.fieldhandlers
-    fh = FieldHandler([Field(dh.field_names[i], dh.field_interpolations[i]) for i ∈ 1:length(dh.field_names)], Set(1:getncells(get_grid(dh)))) # TODO REMOVE THIS HOTFIX
-        # Check if this fh contains this field, otherwise continue to the next
-        field_idx = Ferrite.find_field(fh, fieldname)
+    # Loop over the subdofhandlers
+    # for sdh in dh.subdofhandlers
+        sdh = SubDofHandler(dh, Set(1:getncells(dh.grid)), dh.field_names, dh.field_interpolations, dh.field_dims, ScalarWrapper(Ferrite.ndofs_per_cell(dh))) # FIXME This is just a fake subdofhandler.
+        # Check if this sdh contains this field, otherwise continue to the next
+        field_idx = Ferrite.find_field(sdh, fieldname)
         # field_idx === nothing && continue
         # Set up CellValues with the local node coords as quadrature points
-        CT = getcelltype(dh.grid, first(fh.cellset))
+        CT = getcelltype(dh.grid, first(sdh.cellset))
         ip_geo = default_interpolation(CT)
         local_node_coords = reference_coordinates(ip_geo)
         qr = QuadratureRule{getrefshape(ip)}(zeros(length(local_node_coords)), local_node_coords)
-        ip = getfieldinterpolation(fh, field_idx)
+        ip = getfieldinterpolation(sdh, field_idx)
         if ip isa VectorizedInterpolation
             # TODO: Remove this hack when embedding works...
             cv = CellValues(qr, ip.ip, ip_geo)
         else
             cv = CellValues(qr, ip, ip_geo)
         end
-        drange = dof_range(fh, fieldname)
+        drange = dof_range(sdh, field_idx)
         # Function barrier
-        Ferrite._evaluate_at_grid_nodes!(data, dh, fh, u, cv, drange, RT)
+        Ferrite._evaluate_at_grid_nodes!(data, dh, sdh, u, cv, drange, RT)
     # end
     return data
 end
 
 # NOTE - REDUNDANT
-function Ferrite._evaluate_at_grid_nodes!(data::Union{Vector,Matrix}, dh::NODDofHandler, fh::FieldHandler,
+function Ferrite._evaluate_at_grid_nodes!(data::Union{Vector,Matrix}, dh::NODDofHandler, sdh::SubDofHandler,
         u::Vector{T}, cv::CellValues, drange::UnitRange, ::Type{RT}) where {T, RT}
     ue = zeros(T, length(drange))
     # TODO: Remove this hack when embedding works...
@@ -910,7 +910,7 @@ function Ferrite._evaluate_at_grid_nodes!(data::Union{Vector,Matrix}, dh::NODDof
     else
         uer = ue
     end
-    for cell in CellIterator(dh, fh.cellset)
+    for cell in CellIterator(dh, sdh.cellset)
         # Note: We are only using the shape functions: no reinit!(cv, cell) necessary
         @assert getnquadpoints(cv) == length(cell.nodes)
         for (i, I) in pairs(drange)
@@ -1005,4 +1005,18 @@ function _local_face_dofs_for_bc(interpolation, field_dim, components, offset, b
         push!(local_face_dofs_offset, length(local_face_dofs) + 1)
     end
     return local_face_dofs, local_face_dofs_offset
+end
+
+# NOTE - REDUNDANT
+function Ferrite.CellIterator(dh::NODDofHandler,
+    set::Union{Ferrite.IntegerCollection,Nothing}=nothing,
+    flags::UpdateFlags=UpdateFlags())
+    if set === nothing
+        grid = get_grid(dh)
+        set = 1:getncells(grid)
+    end
+    # TODO: Since the CellCache is resizeable this is not really necessary to check
+    #       here, but might be useful to catch slow code paths?
+    Ferrite._check_same_celltype(get_grid(dh), set)
+    return CellIterator(CellCache(dh, flags), set)
 end

@@ -17,13 +17,13 @@ end
     @test isempty(get_shared_vertices(dgrid))
     @test isempty(get_shared_edges(dgrid))
     @test isempty(get_shared_faces(dgrid))
-    @test getvertexsets(getlocalgrid(dgrid)) == getvertexsets(grid)
-    @test getfacesets(getlocalgrid(dgrid)) == getfacesets(grid)
-    @test getcellsets(getlocalgrid(dgrid)) == getcellsets(grid)
+    @test getlocalgrid(dgrid).vertexsets == grid.vertexsets
+    @test getlocalgrid(dgrid).facesets == grid.facesets
+    @test getlocalgrid(dgrid).cellsets == grid.cellsets
     @test getnnodes(getlocalgrid(dgrid) ) == getnnodes(grid)
     @test getncells(getlocalgrid(dgrid) ) == getncells(grid)
 
-    # Tests 1-based indexing!
+    # Tests 1-based indexing
     @test FerriteDistributed.global_rank(dgrid) == 1
 
     @test FerriteDistributed.global_nranks(dgrid) == 1
@@ -37,9 +37,9 @@ using Metis
     @test isempty(get_shared_vertices(dgrid))
     @test isempty(get_shared_edges(dgrid))
     @test isempty(get_shared_faces(dgrid))
-    @test getvertexsets(getlocalgrid(dgrid)) == getvertexsets(grid)
-    @test getfacesets(getlocalgrid(dgrid)) == getfacesets(grid)
-    @test getcellsets(getlocalgrid(dgrid)) == getcellsets(grid)
+    @test getlocalgrid(dgrid).vertexsets == grid.vertexsets
+    @test getlocalgrid(dgrid).facesets == grid.facesets
+    @test getlocalgrid(dgrid).cellsets == grid.cellsets
     @test getnnodes(getlocalgrid(dgrid) ) == getnnodes(grid)
     @test getncells(getlocalgrid(dgrid) ) == getncells(grid)
 

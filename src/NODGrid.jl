@@ -1,5 +1,5 @@
 """
-    NODGrid{dim,C<:Ferrite.AbstractCell,T<:Real} <: AbstractNODGrid{dim}
+    NODGrid{dim,C<:AbstractCell,T<:Real} <: AbstractNODGrid{dim}
 
 Scalable non-overlapping distributed grid. This data structure is composed of a
 `local_grid` and full topological information on the process boundary, i.e.
@@ -8,7 +8,7 @@ how vertices, edges and faces are connectedted between processes.
 !!! todo
     PartitionedArrays.jl ready constructor via extension
 """
-mutable struct NODGrid{dim,C<:Ferrite.AbstractCell,T<:Real} <: AbstractNODGrid{dim}
+mutable struct NODGrid{dim,C<:AbstractCell,T<:Real} <: AbstractNODGrid{dim}
     # Dense comminicator on the grid
     grid_comm::MPI.Comm
     # Sparse communicator along the shared vertex neighbors
