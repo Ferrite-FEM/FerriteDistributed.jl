@@ -157,9 +157,6 @@ for cell in CellIterator(dh)                                            #src
     end                                                                 #src
 end                                                                     #src
 
-# Finally, we gracefully shutdown MPI
-MPI.Finalize()
-
 #md # ## [Plain program](@id distributed-assembly-plain-hypre)
 #md #
 #md # Here follows a version of the program without any comments.

@@ -36,7 +36,7 @@ cellvalues = CellValues(qr, ip, ip_geo);
 # ### Degrees of freedom
 # Nothing changes here, too. The constructor takes care of creating the correct distributed dof handler.
 dh = DofHandler(dgrid)
-add!(dh, :u, 1, ip)
+add!(dh, :u, ip)
 close!(dh);
 
 # ### Boundary conditions
@@ -64,7 +64,7 @@ function doassemble(cellvalues::CellValues, dh::FerriteDistributed.NODDofHandler
     # may trigger a large amount of communication.
     # NOTE: At the time of writing the only backend available is a COO 
     #       assembly via PartitionedArrays.jl .
-    assembler = start_assemble(dh, MPIBackend())
+    assembler = start_assemble(dh, distribute_with_mpi(LinearIndices((MPI.Comm_size(MPI.COMM_WORLD),))))
 
     # For the local assembly nothing changes
     for cell in CellIterator(dh)
@@ -133,7 +133,7 @@ for cell in CellIterator(dh)                                            #src
     reinit!(cellvalues, cell)                                           #src
     n_basefuncs = getnbasefunctions(cellvalues)                         #src
     coords = getcoordinates(cell)                                       #src
-    map_parts(local_view(u, u.rows)) do u_local                         #src
+    map(local_values(u)) do u_local                         #src
         uₑ = u_local[celldofs(cell)]                                    #src
         for q_point in 1:getnquadpoints(cellvalues)                     #src
             x = spatial_coordinate(cellvalues, q_point, coords)         #src
@@ -145,9 +145,6 @@ for cell in CellIterator(dh)                                            #src
         end                                                             #src
     end                                                                 #src
 end                                                                     #src
-
-# Finally, we gracefully shutdown MPI
-MPI.Finalize()
 
 #md # ## [Plain program](@id distributed-assembly-plain-pa)
 #md #
