@@ -46,7 +46,8 @@ if !liveserver
             "stable" => "v^",
             "v#.#",
             "dev" => "dev"
-        ]
+        ],
+        forcepush = true,
     )
 end
 
