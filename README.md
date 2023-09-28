@@ -1,6 +1,6 @@
 # FerriteDistributed.jl
 
-![Build Status](https://github.com/termi-official/FerriteDistributed.jl/actions/workflows/CI.yml/badge.svg?branch=main)
+![Build Status](https://github.com/Ferrite-FEM/FerriteDistributed.jl/actions/workflows/CI.yml/badge.svg?branch=main)
 
 This package contains the distributed assembly infrastructure for [Ferrite.jl](https://github.com/Ferrite-FEM/Ferrite.jl).
 
@@ -22,7 +22,7 @@ pkg> add Ferrite#7e8a571, FerriteDistributed
 
 > [!NOTE]
 > You need a properly configured MPI.jl installation for FerriteDistributed to work. You can consult
-> the [latest MPI.jl configuration docs](mpi-config-docs) for details.
+> the [latest MPI.jl configuration docs][mpi-config-docs] for details.
 
 ## Contributing
 
@@ -47,7 +47,9 @@ Please keep in mind that we are part of the Julia community and adhere to the
 
 
 
+[docs-dev-img]: https://img.shields.io/badge/docs-dev%20release-blue
 [docs-dev-url]: http://ferrite-fem.github.io/FerriteDistributed.jl/
+
 [mpi-config-docs]: https://juliaparallel.org/MPI.jl/latest/configuration/
 [standards]: https://julialang.org/community/standards/
 [julia-slack]: https://julialang.org/slack/
