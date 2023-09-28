@@ -1,6 +1,6 @@
 # FerriteDistributed.jl
 
-![Build Status](https://github.com/Ferrite-FEM/FerriteDistributed.jl/actions/workflows/CI.yml/badge.svg?branch=main)
+![Build Status](https://github.com/Ferrite-FEM/FerriteDistributed.jl/workflows/CI/badge.svg?event=push)
 
 This package contains the distributed assembly infrastructure for [Ferrite.jl](https://github.com/Ferrite-FEM/Ferrite.jl).
 
