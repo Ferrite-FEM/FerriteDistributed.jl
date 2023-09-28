@@ -38,16 +38,16 @@ makedocs(
     ]
 )
 
-# if !liveserver
-#     @timeit dto "deploydocs" deploydocs(
-#         repo = "github.com/Ferrite-FEM/FerriteDistributed.jl.git",
-#         push_preview=true,
-#         versions = [
-#             "stable" => "v^",
-#             "v#.#",
-#             "dev" => "dev"
-#         ]
-#     )
-# end
+if !liveserver
+    @timeit dto "deploydocs" deploydocs(
+        repo = "github.com/Ferrite-FEM/FerriteDistributed.jl.git",
+        push_preview=true,
+        versions = [
+            "stable" => "v^",
+            "v#.#",
+            "dev" => "dev"
+        ]
+    )
+end
 
 print_timer(dto)
