@@ -14,11 +14,9 @@ jobs:
     continue-on-error: ${{ matrix.julia-version == 'nightly' }}
     strategy:
       matrix:
-        julia-version: ['1.9', 'nightly']
+        julia-version: ['1.9']
         os: ['ubuntu-latest']
         include:
-          - os: windows-latest
-            julia-version: '1.9'
           - os: macOS-latest
             julia-version: '1.9'
     steps:
