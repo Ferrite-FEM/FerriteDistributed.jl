@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+title: "FerriteDistributed.jl"
+message: "If you use FerriteDistributed.jl, please cite it using the metadata from this file, as well as Ferrite.jl."
+type: software
+authors:
+- family-names: "Ogiermann"
+  given-names: "Dennis"
+  orcid: "https://orcid.org/0000-0002-2659-0809"
+- name: "FerriteDistributed.jl contributors"
+repository-code: 'https://github.com/Ferrite-FEM/FerriteDistributed.jl'
+url: 'https://github.com/Ferrite-FEM/FerriteDistributed.jl'
+license: MIT
