@@ -1,5 +1,5 @@
 """
-vtk_grid(::AbstractString, ::AbstractNODGrid{dim}; compress::Bool=true)
+    vtk_grid(::AbstractString, ::AbstractNODGrid{dim}; compress::Bool=true)
 
 Store the grid as a PVTK file.
 """
@@ -27,9 +27,11 @@ function vtk_shared_vertices(pvtk::WriteVTK.PVTKFile, dgrid::AbstractNODGrid)
         fill!(u, 0.0)
         for sv ∈ get_shared_vertices(dgrid)
             if haskey(sv.remote_vertices, rank)
-                (cellidx, i) = sv.local_idx
-                cell = getcells(dgrid, cellidx)
-                u[Ferrite.vertices(cell)[i]] = my_rank
+                for lfi ∈ local_entities(sv)
+                    (cellidx, i) = lfi
+                    cell = getcells(dgrid, cellidx)
+                    u[Ferrite.vertices(cell)[i]] = my_rank
+                end
             end
         end
         vtk_point_data(pvtk.vtk, u, "shared vertices with $rank")
@@ -45,11 +47,13 @@ function vtk_shared_faces(pvtk::WriteVTK.PVTKFile, dgrid::AbstractNODGrid)
     for rank ∈ 1:global_rank(dgrid)
         fill!(u, 0.0)
         for sf ∈ get_shared_faces(dgrid)
-            if haskey(sf.remote_faces, rank)
-                (cellidx, i) = sf.local_idx
-                cell = getcells(dgrid, cellidx)
-                facenodes = Ferrite.faces(cell)[i]
-                u[[facenodes...]] .= my_rank
+            if haskey(sf.remote_face, rank)
+                for lfi ∈ local_entities(sf)
+                    (cellidx, i) = lfi
+                    cell = getcells(dgrid, cellidx)
+                    facenodes = Ferrite.faces(cell)[i]
+                    u[[facenodes...]] .= my_rank
+                end
             end
         end
         vtk_point_data(pvtk.vtk, u, "shared faces with $rank")
@@ -66,10 +70,12 @@ function vtk_shared_edges(pvtk::WriteVTK.PVTKFile, dgrid::AbstractNODGrid)
         fill!(u, 0.0)
         for se ∈ get_shared_edges(dgrid)
             if haskey(se.remote_edges, rank)
-                (cellidx, i) = se.local_idx
-                cell = getcells(dgrid, cellidx)
-                edgenodes = Ferrite.edges(cell)[i]
-                u[[edgenodes...]] .= my_rank
+                for lei ∈ local_entities(se)
+                    (cellidx, i) = lei
+                    cell = getcells(dgrid, cellidx)
+                    edgenodes = Ferrite.edges(cell)[i]
+                    u[[edgenodes...]] .= my_rank
+                end
             end
         end
         vtk_point_data(pvtk.vtk, u, "shared edges with $rank")

@@ -106,34 +106,35 @@ struct COOAssembler{T}
         ghost_dof_field_index_to_send = [Int[] for i ∈ 1:destination_len]
         ghost_dof_owner = [Int[] for i ∈ 1:destination_len] # corresponding owner
         ghost_dof_pivot_to_send = [Int[] for i ∈ 1:destination_len] # corresponding dof to interact with
-        for (pivot_vertex, pivot_shared_vertex) ∈ dgrid.shared_vertices
+        for pivot_shared_vertex ∈ get_shared_vertices(dgrid)
             # Start by searching shared entities which are not owned
             pivot_vertex_owner_rank = compute_owner(dgrid, pivot_shared_vertex)
-            pivot_cell_idx = pivot_vertex[1]
+            for pivot_vi ∈ local_entities(pivot_shared_vertex)
+                pivot_cell_idx = pivot_vi[1]
+                if my_rank != pivot_vertex_owner_rank
+                    sender_slot = destination_index[pivot_vertex_owner_rank]
 
-            if my_rank != pivot_vertex_owner_rank
-                sender_slot = destination_index[pivot_vertex_owner_rank]
+                    Ferrite.@debug println("$pivot_shared_vertex may require synchronization (R$my_rank)")
+                    # Note: We have to send ALL dofs on the element to the remote.
+                    cell_dofs_upper_bound = (pivot_cell_idx == getncells(dh.grid)) ? length(dh.cell_dofs) : dh.cell_dofs_offset[pivot_cell_idx+1]
+                    cell_dofs = dh.cell_dofs[dh.cell_dofs_offset[pivot_cell_idx]:cell_dofs_upper_bound]
 
-                Ferrite.@debug println("$pivot_vertex may require synchronization (R$my_rank)")
-                # Note: We have to send ALL dofs on the element to the remote.
-                cell_dofs_upper_bound = (pivot_cell_idx == getncells(dh.grid)) ? length(dh.cell_dofs) : dh.cell_dofs_offset[pivot_cell_idx+1]
-                cell_dofs = dh.cell_dofs[dh.cell_dofs_offset[pivot_cell_idx]:cell_dofs_upper_bound]
+                    for (field_idx, field_name) in zip(1:num_fields(dh), getfieldnames(dh))
+                        !has_vertex_dofs(dh, field_idx, pivot_vi) && continue
+                        pivot_vertex_dofs = vertex_dofs(dh, field_idx, pivot_vi)
 
-                for (field_idx, field_name) in zip(1:num_fields(dh), getfieldnames(dh))
-                    !has_vertex_dofs(dh, field_idx, pivot_vertex) && continue
-                    pivot_vertex_dofs = vertex_dofs(dh, field_idx, pivot_vertex)
+                        for d ∈ 1:dh.field_dims[field_idx]
+                            Ferrite.@debug println("  adding dof $(pivot_vertex_dofs[d]) to ghost sync synchronization on slot $sender_slot (R$my_rank)")
 
-                    for d ∈ 1:dh.field_dims[field_idx]
-                        Ferrite.@debug println("  adding dof $(pivot_vertex_dofs[d]) to ghost sync synchronization on slot $sender_slot (R$my_rank)")
-
-                        # Extract dofs belonging to the current field
-                        #cell_field_dofs = cell_dofs[dof_range(dh, field_name)]
-                        #for cell_field_dof ∈ cell_field_dofs
-                        for cell_dof ∈ cell_dofs
-                            append!(ghost_dof_pivot_to_send[sender_slot], ldof_to_gdof[pivot_vertex_dofs[d]])
-                            append!(ghost_dof_to_send[sender_slot], ldof_to_gdof[cell_dof])
-                            append!(ghost_rank_to_send[sender_slot], ldof_to_rank[cell_dof])
-                            append!(ghost_dof_field_index_to_send[sender_slot], field_idx)
+                            # Extract dofs belonging to the current field
+                            #cell_field_dofs = cell_dofs[dof_range(dh, field_name)]
+                            #for cell_field_dof ∈ cell_field_dofs
+                            for cell_dof ∈ cell_dofs
+                                append!(ghost_dof_pivot_to_send[sender_slot], ldof_to_gdof[pivot_vertex_dofs[d]])
+                                append!(ghost_dof_to_send[sender_slot], ldof_to_gdof[cell_dof])
+                                append!(ghost_rank_to_send[sender_slot], ldof_to_rank[cell_dof])
+                                append!(ghost_dof_field_index_to_send[sender_slot], field_idx)
+                            end
                         end
                     end
                 end
@@ -141,22 +142,23 @@ struct COOAssembler{T}
         end
 
         if dim > 1
-            for (pivot_face, pivot_shared_face) ∈ dgrid.shared_faces
+            for pivot_shared_face ∈ get_shared_faces(dgrid)
                 # Start by searching shared entities which are not owned
                 pivot_face_owner_rank = compute_owner(dgrid, pivot_shared_face)
-                pivot_cell_idx = pivot_face[1]
+                pivot_fi = local_entities(pivot_shared_face)[1]
+                pivot_cell_idx = pivot_fi[1]
 
                 if my_rank != pivot_face_owner_rank
                     sender_slot = destination_index[pivot_face_owner_rank]
 
-                    Ferrite.@debug println("$pivot_face may require synchronization (R$my_rank)")
+                    Ferrite.@debug println("$pivot_shared_face may require synchronization (R$my_rank)")
                     # Note: We have to send ALL dofs on the element to the remote.
                     cell_dofs_upper_bound = (pivot_cell_idx == getncells(dh.grid)) ? length(dh.cell_dofs) : dh.cell_dofs_offset[pivot_cell_idx+1]
                     cell_dofs = dh.cell_dofs[dh.cell_dofs_offset[pivot_cell_idx]:cell_dofs_upper_bound]
 
                     for (field_idx, field_name) in zip(1:num_fields(dh), getfieldnames(dh))
-                        !has_face_dofs(dh, field_idx, pivot_face) && continue
-                        pivot_face_dofs = face_dofs(dh, field_idx, pivot_face)
+                        !has_face_dofs(dh, field_idx, pivot_fi) && continue
+                        pivot_face_dofs = face_dofs(dh, field_idx, pivot_fi)
 
                         for d ∈ 1:dh.field_dims[field_idx]
                             Ferrite.@debug println("  adding dof $(pivot_face_dofs[d]) to ghost sync synchronization on slot $sender_slot (R$my_rank)")
@@ -177,33 +179,35 @@ struct COOAssembler{T}
         end
 
         if dim > 2
-            for (pivot_edge, pivot_shared_edge) ∈ dgrid.shared_edges
+            for pivot_shared_edge ∈ get_shared_edges(dgrid)
                 # Start by searching shared entities which are not owned
                 pivot_edge_owner_rank = compute_owner(dgrid, pivot_shared_edge)
-                pivot_cell_idx = pivot_edge[1]
+                for pivot_ei ∈ local_entities(pivot_shared_edge)
+                    pivot_cell_idx = pivot_ei[1]
 
-                if my_rank != pivot_edge_owner_rank
-                    sender_slot = destination_index[pivot_edge_owner_rank]
+                    if my_rank != pivot_edge_owner_rank
+                        sender_slot = destination_index[pivot_edge_owner_rank]
 
-                    Ferrite.@debug println("$pivot_edge may require synchronization (R$my_rank)")
-                    # Note: We have to send ALL dofs on the element to the remote.
-                    cell_dofs_upper_bound = (pivot_cell_idx == getncells(dh.grid)) ? length(dh.cell_dofs) : dh.cell_dofs_offset[pivot_cell_idx+1]
-                    cell_dofs = dh.cell_dofs[dh.cell_dofs_offset[pivot_cell_idx]:cell_dofs_upper_bound]
+                        Ferrite.@debug println("$pivot_shared_edge may require synchronization (R$my_rank)")
+                        # Note: We have to send ALL dofs on the element to the remote.
+                        cell_dofs_upper_bound = (pivot_cell_idx == getncells(dh.grid)) ? length(dh.cell_dofs) : dh.cell_dofs_offset[pivot_cell_idx+1]
+                        cell_dofs = dh.cell_dofs[dh.cell_dofs_offset[pivot_cell_idx]:cell_dofs_upper_bound]
 
-                    for (field_idx, field_name) in zip(1:num_fields(dh), getfieldnames(dh))
-                        !has_edge_dofs(dh, field_idx, pivot_edge) && continue
-                        pivot_edge_dofs = edge_dofs(dh, field_idx, pivot_edge)
+                        for (field_idx, field_name) in zip(1:num_fields(dh), getfieldnames(dh))
+                            !has_edge_dofs(dh, field_idx, pivot_ei) && continue
+                            pivot_edge_dofs = edge_dofs(dh, field_idx, pivot_ei)
 
-                        for d ∈ 1:dh.field_dims[field_idx]
-                            Ferrite.@debug println("  adding dof $(pivot_edge_dofs[d]) to ghost sync synchronization on slot $sender_slot (R$my_rank)")
-                            # Extract dofs belonging to the current field
-                            #cell_field_dofs = cell_dofs[dof_range(dh, field_name)]
-                            #for cell_field_dof ∈ cell_field_dofs
-                            for cell_dof ∈ cell_dofs
-                                append!(ghost_dof_pivot_to_send[sender_slot], ldof_to_gdof[pivot_edge_dofs[d]])
-                                append!(ghost_dof_to_send[sender_slot], ldof_to_gdof[cell_dof])
-                                append!(ghost_rank_to_send[sender_slot], ldof_to_rank[cell_dof])
-                                append!(ghost_dof_field_index_to_send[sender_slot], field_idx)
+                            for d ∈ 1:dh.field_dims[field_idx]
+                                Ferrite.@debug println("  adding dof $(pivot_edge_dofs[d]) to ghost sync synchronization on slot $sender_slot (R$my_rank)")
+                                # Extract dofs belonging to the current field
+                                #cell_field_dofs = cell_dofs[dof_range(dh, field_name)]
+                                #for cell_field_dof ∈ cell_field_dofs
+                                for cell_dof ∈ cell_dofs
+                                    append!(ghost_dof_pivot_to_send[sender_slot], ldof_to_gdof[pivot_edge_dofs[d]])
+                                    append!(ghost_dof_to_send[sender_slot], ldof_to_gdof[cell_dof])
+                                    append!(ghost_rank_to_send[sender_slot], ldof_to_rank[cell_dof])
+                                    append!(ghost_dof_field_index_to_send[sender_slot], field_idx)
+                                end
                             end
                         end
                     end

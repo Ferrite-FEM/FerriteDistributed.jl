@@ -65,45 +65,57 @@ Get an interable over the shared faces.
 
 """
     get_shared_vertex(::AbstractNODGrid, ::VertexIndex)
+    get_shared_vertex(::AbstractNODGrid, ::VertexRepresentation)
 
-Get the shared vertex associated to the VertexIndex, if it exists.
+Get the shared vertex associated to the vertex, if it exists.
 """
-@inline get_shared_vertex(dgrid::AbstractNODGrid, vi::VertexIndex) = dgrid.shared_vertices[vi]
+@inline get_shared_vertex(dgrid::AbstractNODGrid, vi::VertexIndex) = get_shared_vertex(dgrid, representation(getlocalgrid(dgrid), vi))
+@inline get_shared_vertex(dgrid::AbstractNODGrid, vertex::VertexRepresentation) = dgrid.shared_vertices[vertex]
 
 """
     get_shared_edge(::AbstractNODGrid, ::EdgeIndex)
+    get_shared_edge(::AbstractNODGrid, ::EdgeRepresentation)
 
-Get the shared edge associated to the EdgeIndex, if it exists.
+Get the shared edge associated to the edge, if it exists.
 """
-@inline get_shared_edge(dgrid::AbstractNODGrid, ei::EdgeIndex) = dgrid.shared_edges[ei]
+@inline get_shared_edge(dgrid::AbstractNODGrid, ei::EdgeIndex) = get_shared_edge(dgrid, representation(getlocalgrid(dgrid), ei))
+@inline get_shared_edge(dgrid::AbstractNODGrid, edge::EdgeRepresentation) = dgrid.shared_edges[edge]
 
 """
     get_shared_face(::AbstractNODGrid, ::FaceIndex)
+    get_shared_face(::AbstractNODGrid, ::FaceRepresentation)
 
-Get the shared edge associated to the FaceIndex, if it exists.
+Get the shared edge associated to the face, if it exists.
 """
-@inline get_shared_face(dgrid::AbstractNODGrid, fi::FaceIndex) = dgrid.shared_faces[fi]
+@inline get_shared_face(dgrid::AbstractNODGrid, fi::FaceIndex) = get_shared_face(dgrid, representation(getlocalgrid(dgrid), fi))
+@inline get_shared_face(dgrid::AbstractNODGrid, face::FaceRepresentation) = dgrid.shared_faces[face]
 
 """
     is_shared_vertex(::AbstractNODGrid, ::VertexIndex)
+    is_shared_vertex(::AbstractNODGrid, ::VertexRepresentation)
 
 Check if a VertexIndex is a shared vertex.
 """
-@inline is_shared_vertex(dgrid::AbstractNODGrid, vi::VertexIndex) = haskey(dgrid.shared_vertices, vi)
+@inline is_shared_vertex(dgrid::AbstractNODGrid, vi::VertexIndex) = is_shared_vertex(dgrid, representation(getlocalgrid(dgrid), vi))
+@inline is_shared_vertex(dgrid::AbstractNODGrid, vertex::VertexRepresentation) = haskey(dgrid.shared_vertices, vertex)
 
 """
     is_shared_edge(::AbstractNODGrid, ::EdgeIndex)
+    is_shared_edge(::AbstractNODGrid, ::EdgeRepresentation)
 
 Check if a EdgeIndex is a shared edge.
 """
-@inline is_shared_edge(dgrid::AbstractNODGrid, ei::EdgeIndex) = haskey(dgrid.shared_edges, ei)
+@inline is_shared_edge(dgrid::AbstractNODGrid, ei::EdgeIndex) = is_shared_edge(dgrid, representation(getlocalgrid(dgrid), ei))
+@inline is_shared_edge(dgrid::AbstractNODGrid, edge::EdgeRepresentation) = haskey(dgrid.shared_edges, edge)
 
 """
     is_shared_face(::AbstractNODGrid, ::FaceIndex)
+    is_shared_face(::AbstractNODGrid, ::FaceRepresentation)
 
 Check if a FaceIndex is a shared face.
 """
-@inline is_shared_face(dgrid::AbstractNODGrid, fi::FaceIndex) = haskey(dgrid.shared_faces, fi)
+@inline is_shared_face(dgrid::AbstractNODGrid, fi::FaceIndex) = is_shared_face(dgrid, representation(getlocalgrid(dgrid), fi))
+@inline is_shared_face(dgrid::AbstractNODGrid, face::FaceRepresentation) = haskey(dgrid.shared_faces, face)
 
 """
     getlocalgrid(::AbstractNODGrid)
@@ -143,9 +155,9 @@ Get the representative local grid containing only a vanilla local grid.
 @inline Ferrite.getvertexsets(grid::AbstractNODGrid) = getvertexset(getlocalgrid(grid), setname)
 
 """
-    extract_local_part!(u_ferrite::Vector, u_extension, dh::Ferrite.AbstractDofHandler)
+    extract_local_part!(u_ferrite::AbstractVector, u_extension, dh::Ferrite.AbstractDofHandler)
 
 Entry point for extensions to register a transfer function translating the solution representation of the extension 
 to a Ferrite compatible vector.
 """
-extract_local_part!(u_ferrite::Vector, u_extension, dh::Ferrite.AbstractDofHandler) = error("Not implemented.")
+extract_local_part!(u_ferrite::AbstractVector, u_extension, dh::Ferrite.AbstractDofHandler) = error("Not implemented.")

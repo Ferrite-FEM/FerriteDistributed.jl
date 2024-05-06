@@ -27,16 +27,17 @@ function FerriteDistributed.extract_local_part!(u::Vector{T}, uh::HYPREVector, d
     # TODO speed this up and better API
     dgrid = getglobalgrid(dh)
     for sv ∈ get_shared_vertices(dgrid)
-        lvi = sv.local_idx
         my_rank != compute_owner(dgrid, sv) && continue
-        for field_idx in 1:num_fields(dh)
-            if has_vertex_dofs(dh, field_idx, lvi)
-                local_dofs = vertex_dofs(dh, field_idx, lvi)
-                global_dofs = dh.ldof_to_gdof[local_dofs]
-                for receiver_rank ∈ keys(remote_entities(sv))
-                    for i ∈ 1:length(global_dofs)
-                        # Note that u already has the correct values for all locally owned dofs due to the loop above!
-                        gdof_value_send[receiver_rank][global_dofs[i]] = u[local_dofs[i]]
+        for lvi ∈ local_entities(sv)
+            for field_idx in 1:num_fields(dh)
+                if has_vertex_dofs(dh, field_idx, lvi)
+                    local_dofs = vertex_dofs(dh, field_idx, lvi)
+                    global_dofs = dh.ldof_to_gdof[local_dofs]
+                    for receiver_rank ∈ keys(remote_entities(sv))
+                        for i ∈ 1:length(global_dofs)
+                            # Note that u already has the correct values for all locally owned dofs due to the loop above!
+                            gdof_value_send[receiver_rank][global_dofs[i]] = u[local_dofs[i]]
+                        end
                     end
                 end
             end
@@ -44,16 +45,17 @@ function FerriteDistributed.extract_local_part!(u::Vector{T}, uh::HYPREVector, d
     end
 
     for se ∈ get_shared_edges(dgrid)
-        lei = se.local_idx
         my_rank != compute_owner(dgrid, se) && continue
-        for field_idx in 1:num_fields(dh)
-            if has_edge_dofs(dh, field_idx, lei)
-                local_dofs = edge_dofs(dh, field_idx, lei)
-                global_dofs = dh.ldof_to_gdof[local_dofs]
-                for receiver_rank ∈ keys(remote_entities(se))
-                    for i ∈ 1:length(global_dofs)
-                        # Note that u already has the correct values for all locally owned dofs due to the loop above!
-                        gdof_value_send[receiver_rank][global_dofs[i]] = u[local_dofs[i]]
+        for lei ∈ local_entities(se)
+            for field_idx in 1:num_fields(dh)
+                if has_edge_dofs(dh, field_idx, lei)
+                    local_dofs = edge_dofs(dh, field_idx, lei)
+                    global_dofs = dh.ldof_to_gdof[local_dofs]
+                    for receiver_rank ∈ keys(remote_entities(se))
+                        for i ∈ 1:length(global_dofs)
+                            # Note that u already has the correct values for all locally owned dofs due to the loop above!
+                            gdof_value_send[receiver_rank][global_dofs[i]] = u[local_dofs[i]]
+                        end
                     end
                 end
             end
@@ -61,16 +63,17 @@ function FerriteDistributed.extract_local_part!(u::Vector{T}, uh::HYPREVector, d
     end
 
     for sf ∈ get_shared_faces(dgrid)
-        lfi = sf.local_idx
         my_rank != compute_owner(dgrid, sf) && continue
-        for field_idx in 1:num_fields(dh)
-            if has_face_dofs(dh, field_idx, lfi)
-                local_dofs = face_dofs(dh, field_idx, lfi)
-                global_dofs = dh.ldof_to_gdof[local_dofs]
-                for receiver_rank ∈ keys(remote_entities(sf))
-                    for i ∈ 1:length(global_dofs)
-                        # Note that u already has the correct values for all locally owned dofs due to the loop above!
-                        gdof_value_send[receiver_rank][global_dofs[i]] = u[local_dofs[i]]
+        for lfi ∈ local_entities(sf)
+            for field_idx in 1:num_fields(dh)
+                if has_face_dofs(dh, field_idx, lfi)
+                    local_dofs = face_dofs(dh, field_idx, lfi)
+                    global_dofs = dh.ldof_to_gdof[local_dofs]
+                    for receiver_rank ∈ keys(remote_entities(sf))
+                        for i ∈ 1:length(global_dofs)
+                            # Note that u already has the correct values for all locally owned dofs due to the loop above!
+                            gdof_value_send[receiver_rank][global_dofs[i]] = u[local_dofs[i]]
+                        end
                     end
                 end
             end
