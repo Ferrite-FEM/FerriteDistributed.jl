@@ -21,7 +21,7 @@ Ferrite.toglobal(grid::Ferrite.AbstractGrid,edgeidx::Vector{Ferrite.EdgeIndex}) 
 """
     representation(grid::AbstractGrid, vertexidx::VertexIndex) -> Int
     representation(grid::AbstractGrid, vertexidx::AbstractVector{VertexIndex}) -> Vector{Tuple{Int}}
-This function takes the local face representation (a `VertexIndex`) and looks up the unique global id (a tuple of `Int`).
+This function takes the local vertex representation (a `VertexIndex`) and looks up the unique global id.
 """
 representation(grid::AbstractGrid,vertexidx::VertexIndex) = VertexRepresentation(Ferrite.toglobal(grid,vertexidx))
 representation(grid::AbstractGrid,vertexidx::AbstractVector{VertexIndex}) = VertexRepresentation.(unique(Ferrite.toglobal.((grid,),vertexidx)))
@@ -34,10 +34,10 @@ This function takes the local face representation (a `FaceIndex`) and looks up t
 representation(grid::AbstractGrid,faceidx::FaceIndex) = FaceRepresentation(faces(getcells(grid,faceidx[1]))[faceidx[2]])
 representation(grid::AbstractGrid,faceidx::AbstractVector{FaceIndex}) = FaceRepresentation.(Ferrite.toglobal.((grid,),faceidx))
 
-"""^
+"""
     representation(grid::AbstractGrid, vertexidx::EdgeIndex) -> Int
     representation(grid::AbstractGrid, vertexidx::AbstractVector{EdgeIndex}) -> Vector{Tuple{Int}}
-This function takes the local face representation (an `EdgeIndex`) and looks up the unique global id (a tuple of `Int`).
+This function takes the local edge representation (an `EdgeIndex`) and looks up the unique global id (a tuple of `Int`).
 """
 representation(grid::AbstractGrid,edgeidx::EdgeIndex) = EdgeRepresentation(edges(getcells(grid,edgeidx[1]))[edgeidx[2]])
 representation(grid::Ferrite.AbstractGrid,edgeidx::Vector{EdgeIndex}) = EdgeRepresentation.(Ferrite.toglobal.((grid,),edgeidx))

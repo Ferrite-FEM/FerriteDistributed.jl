@@ -1,7 +1,7 @@
 """
     VertexRepresentation
 
-We can identify an edge uniquely by the sorted node numbers associated with the end points.
+We can identify a vertex uniquely by the node number.
 """
 struct VertexRepresentation
     node::Int
