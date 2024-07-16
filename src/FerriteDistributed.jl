@@ -8,7 +8,7 @@ import Ferrite: get_coordinate_eltype, ScalarWrapper, @debug,
     nnodes_per_cell, n_components, get_grid, getdim,
     BoundaryIndex, FaceIndex, EdgeIndex, CellIndex, VertexIndex,
     AbstractTopology, EntityNeighborhood,
-    AbstractCell, boundaryfunction, faces, edges, vertices, nvertices, nfaces, nedges,
+    AbstractGrid, AbstractCell, boundaryfunction, faces, edges, vertices, nvertices, nfaces, nedges,
     cellnodes!, cellcoords!,
     getfieldnames, getfieldinterpolation, default_interpolation,
     reference_coordinates, value, getrefshape, dof_range, getfielddim,
@@ -18,6 +18,7 @@ include("utils.jl")
 
 include("CoverTopology.jl")
 
+include("Entity.jl")
 include("SharedEntity.jl")
 
 include("interface.jl")

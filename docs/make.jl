@@ -25,8 +25,8 @@ makedocs(
     sitename = "FerriteDistributed.jl",
     format = Documenter.HTML(),
     doctest = false,
-    strict = false,
-    draft = true,
+    warnonly = true,
+    draft = liveserver,
     pages = Any[
         "Home" => "index.md",
         "Examples" => [GENERATEDEXAMPLES;],

@@ -20,6 +20,7 @@ end
         # Edges
         @test length(get_shared_edges(dgrid)) == 4
         function check_edge_correctly_shared_1(idx_local, idx_nonlocal)
+            @test is_shared_edge(dgrid, idx_local)
             se = get_shared_edge(dgrid, idx_local)
             @test FerriteDistributed.remote_entities(se) == Dict(2 => [idx_nonlocal])
         end
@@ -30,12 +31,14 @@ end
 
         # Faces
         @test length(get_shared_faces(dgrid)) == 1
+        @test is_shared_face(dgrid, FaceIndex(1,5))
         sf = get_shared_face(dgrid, FaceIndex(1,5))
-        @test FerriteDistributed.remote_entities(sf) == Dict(2 => [FaceIndex(1,3)])
+        @test FerriteDistributed.remote_entities(sf) == Dict(2 => FaceIndex(1,3))
     elseif my_rank == 2
         # Edges
         @test length(get_shared_edges(dgrid)) == 4
         function check_edge_correctly_shared_2(idx_nonlocal, idx_local)
+            @test is_shared_edge(dgrid, idx_local)
             se = get_shared_edge(dgrid, idx_local)
             @test FerriteDistributed.remote_entities(se) == Dict(1 => [idx_nonlocal])
         end
@@ -46,8 +49,9 @@ end
 
         # Faces
         @test length(get_shared_faces(dgrid)) == 1
+        @test is_shared_face(dgrid, FaceIndex(1,3))
         sf = get_shared_face(dgrid, FaceIndex(1,3))
-        @test FerriteDistributed.remote_entities(sf) == Dict(1 => [FaceIndex(1,5)])
+        @test FerriteDistributed.remote_entities(sf) == Dict(1 => FaceIndex(1,5))
     end
     MPI.Finalize()
 end

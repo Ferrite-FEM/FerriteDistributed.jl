@@ -66,11 +66,8 @@ function Ferrite.apply!(K::PartitionedArrays.PSparseMatrix, f::PartitionedArrays
     # remote_ghost_gdofs, remote_ghost_parts = map(K.col_partition) do partition
         partition = K.col_partition.item_ref[]
         remote_ghost_ldofs = partition.ghost_to_local
-        @show remote_ghost_ldofs
         remote_ghost_parts = partition.local_to_owner[remote_ghost_ldofs]
-        @show remote_ghost_parts
         remote_ghost_gdofs = partition.local_to_global[remote_ghost_ldofs]
-        @show remote_ghost_gdofs
         # return (remote_ghost_gdofs, remote_ghost_parts)
     # end
 

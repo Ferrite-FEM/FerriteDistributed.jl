@@ -163,31 +163,34 @@ function compute_dof_ownership(dh::NODDofHandler)
     fill!(dof_owner, my_rank)
 
     for sv ∈ get_shared_vertices(dgrid)
-        lvi = sv.local_idx
-        for field_idx in 1:num_fields(dh)
-            if has_vertex_dofs(dh, field_idx, lvi)
-                local_dofs = vertex_dofs(dh, field_idx, lvi)
-                dof_owner[local_dofs] .= compute_owner(dgrid, sv)
+        for lvi ∈ local_entities(sv)
+            for field_idx in 1:num_fields(dh)
+                if has_vertex_dofs(dh, field_idx, lvi)
+                    local_dofs = vertex_dofs(dh, field_idx, lvi)
+                    dof_owner[local_dofs] .= compute_owner(dgrid, sv)
+                end
             end
         end
     end
 
     for sf ∈ get_shared_faces(dgrid)
-        lfi = sf.local_idx
-        for field_idx in 1:num_fields(dh)
-            if has_face_dofs(dh, field_idx, lfi)
-                local_dofs = face_dofs(dh, field_idx, lfi)
-                dof_owner[local_dofs] .= compute_owner(dgrid, sf)
+        for lfi ∈ local_entities(sf)
+            for field_idx in 1:num_fields(dh)
+                if has_face_dofs(dh, field_idx, lfi)
+                    local_dofs = face_dofs(dh, field_idx, lfi)
+                    dof_owner[local_dofs] .= compute_owner(dgrid, sf)
+                end
             end
         end
     end
 
     for se ∈ get_shared_edges(dgrid)
-        lei = se.local_idx
-        for field_idx in 1:num_fields(dh)
-            if has_edge_dofs(dh, field_idx, lei)
-                local_dofs = edge_dofs(dh, field_idx, lei)
-                dof_owner[local_dofs] .= compute_owner(dgrid, se)
+        for lei ∈ local_entities(se)
+            for field_idx in 1:num_fields(dh)
+                if has_edge_dofs(dh, field_idx, lei)
+                    local_dofs = edge_dofs(dh, field_idx, lei)
+                    dof_owner[local_dofs] .= compute_owner(dgrid, se)
+                end
             end
         end
     end
@@ -384,14 +387,14 @@ function local_to_global_numbering(dh::NODDofHandler{dim}) where {dim}
                                     faces_send[remote_rank] = FaceIndex[]
                                 end
                                 Ferrite.@debug println("      prepare sending face #$(lfi) to $remote_rank (R$my_rank)")
-                                for i ∈ svs
+                                # for i ∈ svs
                                     push!(faces_send[remote_rank],lfi)
-                                end
+                                # end
                             elseif master_rank == remote_rank  # dof is owned by remote - we have to receive information
                                 if !haskey(n_faces_recv,remote_rank)
-                                    n_faces_recv[remote_rank] = length(svs)
+                                    n_faces_recv[remote_rank] = 1#length(svs)
                                 else
-                                    n_faces_recv[remote_rank] += length(svs)
+                                    n_faces_recv[remote_rank] += 1#length(svs)
                                 end
                                 Ferrite.@debug println("      prepare receiving face #$(lfi) from $remote_rank (R$my_rank)")
                             end
@@ -459,7 +462,7 @@ function local_to_global_numbering(dh::NODDofHandler{dim}) where {dim}
                     remote_cell_vis = Array{Int64}(undef,n_vertices)
                     next_buffer_idx = 1
                     for lvi ∈ vertices_send[remote_rank]
-                        sv = dgrid.shared_vertices[lvi]
+                        sv = get_shared_vertex(dgrid, lvi)
                         @assert haskey(sv.remote_vertices, remote_rank)
                         for (cvi, llvi) ∈ sv.remote_vertices[remote_rank][1:1] # Just don't ask :)
                             remote_cells[next_buffer_idx] = cvi
@@ -496,14 +499,16 @@ function local_to_global_numbering(dh::NODDofHandler{dim}) where {dim}
                     remote_cells = Array{Int64}(undef,n_faces)
                     remote_cell_vis = Array{Int64}(undef,n_faces)
                     next_buffer_idx = 1
-                    for lvi ∈ faces_send[remote_rank]
-                        sv = dgrid.shared_faces[lvi]
-                        @assert haskey(sv.remote_faces, remote_rank)
-                        for (cvi, llvi) ∈ sv.remote_faces[remote_rank][1:1] # Just don't ask :)
+                    for lfi ∈ faces_send[remote_rank]
+                        sv = get_shared_face(dgrid, lfi)
+                        remote_faces = remote_entities(sv)
+                        @assert haskey(remote_faces, remote_rank)
+                        # for (cvi, llfi) ∈ remote_faces[remote_rank]
+                            (cvi, llfi) =remote_faces[remote_rank]
                             remote_cells[next_buffer_idx] = cvi
-                            remote_cell_vis[next_buffer_idx] = llvi 
+                            remote_cell_vis[next_buffer_idx] = llfi 
                             next_buffer_idx += 1
-                        end
+                        # end
                     end
                     MPI.Send(remote_cells, global_comm(dgrid); dest=remote_rank-1)
                     MPI.Send(remote_cell_vis, global_comm(dgrid); dest=remote_rank-1)
@@ -544,12 +549,12 @@ function local_to_global_numbering(dh::NODDofHandler{dim}) where {dim}
                     remote_cells = Array{Int64}(undef,n_edges)
                     remote_cell_vis = Array{Int64}(undef,n_edges)
                     next_buffer_idx = 1
-                    for lvi ∈ edges_send_unique
-                        sv = dgrid.shared_edges[lvi]
+                    for lei ∈ edges_send_unique
+                        sv = get_shared_edge(dgrid, lei)
                         @assert haskey(sv.remote_edges, remote_rank)
-                        for (cvi, llvi) ∈ sv.remote_edges[remote_rank][1:1] # Just don't ask :)
+                        for (cvi, llei) ∈ sv.remote_edges[remote_rank][1:1] # Just don't ask :)
                             remote_cells[next_buffer_idx] = cvi
-                            remote_cell_vis[next_buffer_idx] = llvi 
+                            remote_cell_vis[next_buffer_idx] = llei 
                             next_buffer_idx += 1
                         end
                     end

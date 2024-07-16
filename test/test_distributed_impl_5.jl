@@ -21,7 +21,7 @@ end
     global_topology = CoverTopology(global_grid)
     dgrid = NODGrid(comm, global_grid, global_topology, [3,3,4,2,5,4,1,2,5])
     my_rank = global_rank(dgrid)
-    
+
     dh = DofHandler(dgrid)
     add!(dh, :u, ip)
     close!(dh);
