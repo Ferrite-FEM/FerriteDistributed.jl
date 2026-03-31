@@ -19,7 +19,7 @@ function FerriteDistributed.create_partitioning(grid::Grid{dim,C,T}, grid_topolo
     @inbounds for i in 1:n_cells_global
         n_neighbors = 0
         for neighbor ∈ getneighborhood(grid_topology, grid, CellIndex(i))
-            push!(adjncy, neighbor.idx)
+            push!(adjncy, neighbor)
             n_neighbors += 1
         end
         xadj[i+1] = xadj[i] + n_neighbors

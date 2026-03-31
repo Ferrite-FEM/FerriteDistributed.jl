@@ -87,7 +87,7 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
     @assert length(local_cells) > 0 # Cannot handle empty partitions yet
 
     # 2. Find unique nodes
-    local_node_index_set = Set{Int}()
+    local_node_index_set = OrderedSet{Int}()
     for cell ∈ local_cells
         for global_node_idx ∈ cell.nodes # @TODO abstraction
             push!(local_node_index_set, global_node_idx)
@@ -132,9 +132,9 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
         end
     end
 
-    cellsets = Dict{String,Set{Int}}()
+    cellsets = Dict{String,OrderedSet{Int}}()
     for key ∈ keys(grid_to_distribute.cellsets)
-        cellsets[key] = Set{Int}() # create empty set, so it does not crash during assembly
+        cellsets[key] = OrderedSet{Int}() # create empty set, so it does not crash during assembly
         for global_cell_idx ∈ grid_to_distribute.cellsets[key]
             if haskey(global_to_local_cell_map[my_rank], global_cell_idx)
                 push!(cellsets[key], global_to_local_cell_map[my_rank][global_cell_idx])
@@ -142,9 +142,9 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
         end
     end
 
-    nodesets = Dict{String,Set{Int}}()
+    nodesets = Dict{String,OrderedSet{Int}}()
     for key ∈ keys(grid_to_distribute.nodesets)
-        nodesets[key] = Set{Int}() # create empty set, so it does not crash during assembly
+        nodesets[key] = OrderedSet{Int}() # create empty set, so it does not crash during assembly
         for global_node_idx ∈ grid_to_distribute.nodesets[key]
             if haskey(global_to_local_node_map, global_node_idx)
                 push!(nodesets[key], global_to_local_node_map[global_node_idx])
@@ -152,13 +152,13 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
         end
     end
 
-    facesets = Dict{String,Set{FaceIndex}}()
+    facesets = Dict{String,OrderedSet{FaceIndex}}()
 
-    edgesets = Dict{String,Set{EdgeIndex}}()
+    edgesets = Dict{String,OrderedSet{EdgeIndex}}()
 
-    vertexsets = Dict{String,Set{VertexIndex}}()
+    vertexsets = Dict{String,OrderedSet{VertexIndex}}()
     for key ∈ keys(grid_to_distribute.vertexsets)
-        vertexsets[key] = Set{VertexIndex}() # create empty set, so it does not crash during assembly
+        vertexsets[key] = OrderedSet{VertexIndex}() # create empty set, so it does not crash during assembly
         for vi ∈ grid_to_distribute.vertexsets[key]
             global_cell_idx = vi[1]
             i = vi[2]
@@ -169,9 +169,9 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
     end
 
     # Convert sets to facetsets for the new Grid constructor
-    facetsets = Dict{String,Set{FacetIndex}}()
+    facetsets = Dict{String,OrderedSet{FacetIndex}}()
     for key ∈ keys(grid_to_distribute.facetsets)
-        facetsets[key] = Set{FacetIndex}()
+        facetsets[key] = OrderedSet{FacetIndex}()
         for fi ∈ grid_to_distribute.facetsets[key]
             global_cell_idx = fi[1]
             i = fi[2]
@@ -274,7 +274,7 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
     end
 
     # Neighborhood graph
-    neighbors_set = Set{Cint}()
+    neighbors_set = OrderedSet{Cint}()
     for (vi, sv) ∈ shared_vertices
         for (rank, vvi) ∈ sv.remote_vertices
             push!(neighbors_set, rank)

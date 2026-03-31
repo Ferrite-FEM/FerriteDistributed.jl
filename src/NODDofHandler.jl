@@ -33,21 +33,22 @@ Ferrite.getfieldnames(dh::NODDofHandler) = dh.field_names
 # NOTE - REDUNDANT
 Ferrite.nnodes_per_cell(dh::NODDofHandler, cell::Int=1) = Ferrite.nnodes_per_cell(get_grid(dh), cell)
 # NOTE - REDUNDANT
-function Ferrite.add!(dh::NODDofHandler, name::Symbol, dim::Int, ip::Interpolation=geometric_interpolation(getcelltype(get_grid(dh))))
+function Ferrite.add!(dh::NODDofHandler, name::Symbol, ip::Interpolation)
     @assert !Ferrite.isclosed(dh)
     @assert !in(name, dh.field_names)
     push!(dh.field_names, name)
-    push!(dh.field_dims, dim)
+    push!(dh.field_dims, Ferrite.n_components(ip))
     push!(dh.field_interpolations, ip)
     return dh
 end
 # NOTE - REDUNDANT
-function Ferrite.add!(dh::NODDofHandler, name::Symbol, ip::Interpolation)
-    return Ferrite.add!(dh, name, 1, ip)
-end
-# NOTE - REDUNDANT
 function Ferrite.add!(dh::NODDofHandler, name::Symbol, ip::VectorizedInterpolation{vdim}) where {vdim}
-    return Ferrite.add!(dh, name, vdim, ip)
+    @assert !Ferrite.isclosed(dh)
+    @assert !in(name, dh.field_names)
+    push!(dh.field_names, name)
+    push!(dh.field_dims, vdim)
+    push!(dh.field_interpolations, ip)
+    return dh
 end
 # NOTE - REDUNDANT
 Ferrite.ndofs_per_cell(dh::NODDofHandler, cell::Int=1) = dh.cell_dofs_offset[cell+1] - dh.cell_dofs_offset[cell]
@@ -527,8 +528,8 @@ function local_to_global_numbering(dh::NODDofHandler{dim}) where {dim}
 
                 if haskey(edges_send, remote_rank)
                     # Well .... that some hotfix straight outta hell.
-                    edges_send_unique_set = Set{Tuple{Int,Int}}()
-                    edges_send_unique = Set{EdgeIndex}()
+                    edges_send_unique_set = OrderedSet{Tuple{Int,Int}}()
+                    edges_send_unique = OrderedSet{EdgeIndex}()
                     for lei ∈ edges_send[remote_rank]
                         edge = Ferrite.toglobal(dgrid, lei)
                         if edge ∉ edges_send_unique_set
@@ -633,7 +634,7 @@ function local_to_global_numbering(dh::NODDofHandler{dim}) where {dim}
             end
 
             if haskey(edges_recv, sending_rank)
-                edges_recv_unique_set = Set{Tuple{Int,Int}}()
+                edges_recv_unique_set = OrderedSet{Tuple{Int,Int}}()
                 for lei ∈ edges_recv[sending_rank]
                     edge = Ferrite.toglobal(dgrid, lei)
                     push!(edges_recv_unique_set, edge)
