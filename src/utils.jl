@@ -48,7 +48,7 @@ end
 nvertexdofs(ip::Interpolation) = length(Ferrite.vertexdof_indices(ip)[1])
 nfacedofs(ip::Interpolation) = length(Ferrite.facedof_interior_indices(ip)[1])
 nedgedofs(ip::Interpolation) = length(Ferrite.edgedof_interior_indices(ip)[1])
-ncelldofs(ip::Interpolation) = length(Ferrite.celldof_interior_indices(ip))
+ncelldofs(ip::Interpolation) = length(Ferrite.volumedof_interior_indices(ip))
 nvertexdofs(ip::VectorizedInterpolation{vdim}) where {vdim} = nvertexdofs(ip.ip)#*vdim
 nfacedofs(ip::VectorizedInterpolation{vdim}) where {vdim} = nfacedofs(ip.ip)#*vdim
 nedgedofs(ip::VectorizedInterpolation{vdim}) where {vdim} = nedgedofs(ip.ip)#*vdim
@@ -96,7 +96,7 @@ Compute the dofs belonging to a given face of a given field.
 """
 function face_dofs(dh::Ferrite.AbstractDofHandler, field_idx::Int, face::FaceIndex)
     ip = Ferrite.getfieldinterpolation(dh, field_idx)
-    dim = getdim(dh)
+    dim = Ferrite.getspatialdim(get_grid(dh))
     nfdofs = nfacedofs(ip)
     nfdofs == 0 && return Int[]
     nvdofs = nvertexdofs(ip)

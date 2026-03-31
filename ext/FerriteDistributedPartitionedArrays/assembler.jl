@@ -25,7 +25,7 @@ struct COOAssembler{T}
         nldofs = num_local_dofs(dh)
         ngdofs = num_global_dofs(dh)
         dgrid = getglobalgrid(dh)
-        dim = getdim(dgrid)
+        dim = Ferrite.getspatialdim(dgrid)
 
         I = Int[]
         J = Int[]

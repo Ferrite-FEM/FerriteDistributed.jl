@@ -17,8 +17,6 @@
 using FerriteDistributed
 using HYPRE, Metis
 
-import FerriteDistributed: getglobalgrid, global_comm, local_dof_range #TODO REMOVE THIS
-
 # Launch MPI and HYPRE
 MPI.Init()
 HYPRE.Init()
@@ -38,13 +36,13 @@ cellvalues = CellValues(qr, ip, ip_geo);
 # ### Degrees of freedom
 # Nothing changes here, too. The constructor takes care of creating the correct distributed dof handler.
 dh = DofHandler(dgrid)
-push!(dh, :u, 1, ip)
+add!(dh, :u, ip)
 close!(dh);
 
 # ### Boundary conditions
 # Nothing has to be changed here either.
 ch = ConstraintHandler(dh);
-∂Ω = union(getfaceset.((dgrid, ), ["left", "right", "top", "bottom", "front", "back"])...);
+∂Ω = union(getfacetset.((dgrid, ), ["left", "right", "top", "bottom", "front", "back"])...);
 dbc = Dirichlet(:u, ∂Ω, (x, t) -> 0)
 dbc_val = 0                                 #src
 dbc = Dirichlet(:u, ∂Ω, (x, t) -> dbc_val)  #src
@@ -53,7 +51,7 @@ close!(ch)
 
 # ### Assembling the linear system
 # Assembling the system works also mostly analogue.
-function doassemble(cellvalues::CellValues, dh::FerriteDistributed.NODDofHandler{dim}, ch::ConstraintHandler) where {dim}
+function doassemble(cellvalues::CellValues, dh::NODDofHandler{dim}, ch::ConstraintHandler) where {dim}
     n_basefuncs = getnbasefunctions(cellvalues)
     Ke = zeros(n_basefuncs, n_basefuncs)
     fe = zeros(n_basefuncs)
@@ -61,10 +59,8 @@ function doassemble(cellvalues::CellValues, dh::FerriteDistributed.NODDofHandler
     # --------------------- Distributed assembly --------------------
     # The synchronization with the global sparse matrix is handled by
     # an assembler again. You can choose from different backends, which
-    # are described in the docs and will be expaned over time. This call
+    # are described in the docs and will be expanded over time. This call
     # may trigger a large amount of communication.
-
-    # TODO how to put this into an interface?
     dgrid = getglobalgrid(dh)
     comm = global_comm(dgrid)
     ldofrange = local_dof_range(dh)

@@ -2,17 +2,20 @@ module FerriteDistributed
 
 using Reexport
 @reexport using Ferrite, MPI
+using OrderedCollections: OrderedSet
 
 # Common stuff from core
-import Ferrite: get_coordinate_eltype, ScalarWrapper, @debug,
-    nnodes_per_cell, n_components, get_grid, getdim,
-    BoundaryIndex, FaceIndex, EdgeIndex, CellIndex, VertexIndex,
-    AbstractTopology, EntityNeighborhood,
+import Ferrite: get_coordinate_eltype, @debug,
+    nnodes_per_cell, n_components, get_grid, getrefdim, getspatialdim,
+    BoundaryIndex, FaceIndex, FacetIndex, EdgeIndex, CellIndex, VertexIndex,
+    AbstractTopology,
     AbstractCell, boundaryfunction, faces, edges, vertices, nvertices, nfaces, nedges,
     cellnodes!, cellcoords!,
-    getfieldnames, getfieldinterpolation, default_interpolation,
-    reference_coordinates, value, getrefshape, dof_range, getfielddim,
+    getfieldnames, getfieldinterpolation, geometric_interpolation,
+    reference_coordinates, getrefshape, dof_range,
     BCValues
+
+import Ferrite: WriteVTK
 
 include("utils.jl")
 

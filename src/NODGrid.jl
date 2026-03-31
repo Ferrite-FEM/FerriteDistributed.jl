@@ -153,31 +153,30 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
     end
 
     facesets = Dict{String,Set{FaceIndex}}()
-    for key ∈ keys(grid_to_distribute.facesets)
-        facesets[key] = Set{FaceIndex}() # create empty set, so it does not crash during assembly
-        for (global_cell_idx, i) ∈ grid_to_distribute.facesets[key]
-            if haskey(global_to_local_cell_map[my_rank], global_cell_idx)
-                push!(facesets[key], FaceIndex(global_to_local_cell_map[my_rank][global_cell_idx], i))
-            end
-        end
-    end
 
     edgesets = Dict{String,Set{EdgeIndex}}()
-    for key ∈ keys(grid_to_distribute.edgesets)
-        edgesets[key] = Set{EdgeIndex}() # create empty set, so it does not crash during assembly
-        for (global_cell_idx, i) ∈ grid_to_distribute.edgesets[key]
-            if haskey(global_to_local_cell_map[my_rank], global_cell_idx)
-                push!(edgesets[key], EdgeIndex(global_to_local_cell_map[my_rank][global_cell_idx], i))
-            end
-        end
-    end
 
     vertexsets = Dict{String,Set{VertexIndex}}()
     for key ∈ keys(grid_to_distribute.vertexsets)
         vertexsets[key] = Set{VertexIndex}() # create empty set, so it does not crash during assembly
-        for (global_cell_idx, i) ∈ grid_to_distribute.vertexsets[key]
+        for vi ∈ grid_to_distribute.vertexsets[key]
+            global_cell_idx = vi[1]
+            i = vi[2]
             if haskey(global_to_local_cell_map[my_rank], global_cell_idx)
                 push!(vertexsets[key], VertexIndex(global_to_local_cell_map[my_rank][global_cell_idx], i))
+            end
+        end
+    end
+
+    # Convert sets to facetsets for the new Grid constructor
+    facetsets = Dict{String,Set{FacetIndex}}()
+    for key ∈ keys(grid_to_distribute.facetsets)
+        facetsets[key] = Set{FacetIndex}()
+        for fi ∈ grid_to_distribute.facetsets[key]
+            global_cell_idx = fi[1]
+            i = fi[2]
+            if haskey(global_to_local_cell_map[my_rank], global_cell_idx)
+                push!(facetsets[key], FacetIndex(global_to_local_cell_map[my_rank][global_cell_idx], i))
             end
         end
     end
@@ -187,8 +186,7 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
         local_nodes,
         cellsets=cellsets,
         nodesets=nodesets,
-        facesets=facesets,
-        edgesets=edgesets,
+        facetsets=facetsets,
         vertexsets=vertexsets
     )
 

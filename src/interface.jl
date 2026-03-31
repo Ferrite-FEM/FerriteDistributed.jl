@@ -113,9 +113,10 @@ Get the representative local grid containing only a vanilla local grid.
 @inline getlocalgrid(dgrid::AbstractNODGrid) = dgrid.local_grid
 
 # Ferrite.AbstractGrid interface
+@inline Ferrite.getspatialdim(::AbstractNODGrid{sdim}) where {sdim} = sdim
 @inline Ferrite.getnodes(dgrid::AbstractNODGrid) = getnodes(getlocalgrid(dgrid))
-@inline Ferrite.getnodes(grid::AbstractNODGrid, v::Union{Int, Vector{Int}}) = getnodes(getlocalgrid(dgrid), v)
-@inline Ferrite.getnodes(grid::AbstractNODGrid, setname::String) = getnodes(getlocalgrid(dgrid), setname)
+@inline Ferrite.getnodes(dgrid::AbstractNODGrid, v::Union{Int, Vector{Int}}) = getnodes(getlocalgrid(dgrid), v)
+@inline Ferrite.getnodes(dgrid::AbstractNODGrid, setname::String) = getnodes(getlocalgrid(dgrid), setname)
 @inline Ferrite.getnnodes(dgrid::AbstractNODGrid) = getnnodes(getlocalgrid(dgrid))
 
 @inline Ferrite.getcells(dgrid::AbstractNODGrid) = getcells(getlocalgrid(dgrid))
@@ -127,20 +128,17 @@ Get the representative local grid containing only a vanilla local grid.
 @inline Ferrite.getcelltype(dgrid::AbstractNODGrid) = eltype(getcells(getlocalgrid(dgrid)))
 @inline Ferrite.getcelltype(dgrid::AbstractNODGrid, i::Int) = typeof(getcells(getlocalgrid(dgrid),i))
 
-@inline Ferrite.getcellset(grid::AbstractNODGrid, setname::String) = getcellset(getlocalgrid(grid), setname)
-@inline Ferrite.getcellsets(grid::AbstractNODGrid) = getcellsets(getlocalgrid(grid))
+@inline Ferrite.getcellset(dgrid::AbstractNODGrid, setname::String) = getcellset(getlocalgrid(dgrid), setname)
+@inline Ferrite.getcellsets(dgrid::AbstractNODGrid) = getcellsets(getlocalgrid(dgrid))
 
-@inline Ferrite.getnodeset(grid::AbstractNODGrid, setname::String) = getnodeset(getlocalgrid(grid), setname)
-@inline Ferrite.getnodesets(grid::AbstractNODGrid) = getnodeset(getlocalgrid(grid), setname)
+@inline Ferrite.getnodeset(dgrid::AbstractNODGrid, setname::String) = getnodeset(getlocalgrid(dgrid), setname)
+@inline Ferrite.getnodesets(dgrid::AbstractNODGrid) = getnodesets(getlocalgrid(dgrid))
 
-@inline Ferrite.getfaceset(grid::AbstractNODGrid, setname::String) = getfaceset(getlocalgrid(grid), setname)
-@inline Ferrite.getfacesets(grid::AbstractNODGrid) = getfaceset(getlocalgrid(grid), setname)
+@inline Ferrite.getfacetset(dgrid::AbstractNODGrid, setname::String) = getfacetset(getlocalgrid(dgrid), setname)
+@inline Ferrite.getfacetsets(dgrid::AbstractNODGrid) = getfacetsets(getlocalgrid(dgrid))
 
-@inline Ferrite.getedgeset(grid::AbstractNODGrid, setname::String) = getedgeset(getlocalgrid(grid), setname)
-@inline Ferrite.getedgesets(grid::AbstractNODGrid) = getedgeset(getlocalgrid(grid), setname)
-
-@inline Ferrite.getvertexset(grid::AbstractNODGrid, setname::String) = getvertexset(getlocalgrid(grid), setname)
-@inline Ferrite.getvertexsets(grid::AbstractNODGrid) = getvertexset(getlocalgrid(grid), setname)
+@inline Ferrite.getvertexset(dgrid::AbstractNODGrid, setname::String) = getvertexset(getlocalgrid(dgrid), setname)
+@inline Ferrite.getvertexsets(dgrid::AbstractNODGrid) = getvertexsets(getlocalgrid(dgrid))
 
 """
     extract_local_part!(u_ferrite::Vector, u_extension, dh::Ferrite.AbstractDofHandler)

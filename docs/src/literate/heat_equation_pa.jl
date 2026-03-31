@@ -42,7 +42,7 @@ close!(dh);
 # ### Boundary conditions
 # Nothing has to be changed here either.
 ch = ConstraintHandler(dh);
-∂Ω = union(getfaceset.((dgrid, ), ["left", "right", "top", "bottom", "front", "back"])...);
+∂Ω = union(getfacetset.((dgrid, ), ["left", "right", "top", "bottom", "front", "back"])...);
 dbc = Dirichlet(:u, ∂Ω, (x, t) -> 0)
 dbc_val = 0                                 #src
 dbc = Dirichlet(:u, ∂Ω, (x, t) -> dbc_val)  #src
@@ -52,7 +52,7 @@ update!(ch, 0.0);
 
 # ### Assembling the linear system
 # Assembling the system works also mostly analogue. Note that the dof handler type changed.
-function doassemble(cellvalues::CellValues, dh::FerriteDistributed.NODDofHandler{dim}) where {dim}
+function doassemble(cellvalues::CellValues, dh::NODDofHandler{dim}) where {dim}
     n_basefuncs = getnbasefunctions(cellvalues)
     Ke = zeros(n_basefuncs, n_basefuncs)
     fe = zeros(n_basefuncs)
@@ -60,7 +60,7 @@ function doassemble(cellvalues::CellValues, dh::FerriteDistributed.NODDofHandler
     # --------------------- Distributed assembly --------------------
     # The synchronization with the global sparse matrix is handled by 
     # an assembler again. You can choose from different backends, which
-    # are described in the docs and will be expaned over time. This call
+    # are described in the docs and will be expanded over time. This call
     # may trigger a large amount of communication.
     # NOTE: At the time of writing the only backend available is a COO 
     #       assembly via PartitionedArrays.jl .

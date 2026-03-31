@@ -12,7 +12,7 @@ Supports:
 !!! todo
     Update to new dof management interface
 """
-struct NODDofHandler{dim,T,G<:AbstractNODGrid{dim}} <: Ferrite.AbstractDofHandler
+mutable struct NODDofHandler{dim,T,G<:AbstractNODGrid{dim}} <: Ferrite.AbstractDofHandler
     field_names::Vector{Symbol}
     field_dims::Vector{Int}
     # TODO: field_interpolations can probably be better typed: We should at least require
@@ -21,9 +21,9 @@ struct NODDofHandler{dim,T,G<:AbstractNODGrid{dim}} <: Ferrite.AbstractDofHandle
     bc_values::Vector{Ferrite.BCValues{T}} # TODO: BcValues is created/handeld by the constrainthandler, so this can be removed
     cell_dofs::Vector{Int}
     cell_dofs_offset::Vector{Int}
-    closed::Ferrite.ScalarWrapper{Bool}
+    closed::Bool
     grid::G
-    ndofs::Ferrite.ScalarWrapper{Int}
+    ndofs::Int
 
     ldof_to_gdof::Vector{Int}
     ldof_to_rank::Vector{Int32}
@@ -33,7 +33,7 @@ Ferrite.getfieldnames(dh::NODDofHandler) = dh.field_names
 # NOTE - REDUNDANT
 Ferrite.nnodes_per_cell(dh::NODDofHandler, cell::Int=1) = Ferrite.nnodes_per_cell(get_grid(dh), cell)
 # NOTE - REDUNDANT
-function Ferrite.add!(dh::NODDofHandler, name::Symbol, dim::Int, ip::Interpolation=default_interpolation(getcelltype(get_grid(dh))))
+function Ferrite.add!(dh::NODDofHandler, name::Symbol, dim::Int, ip::Interpolation=geometric_interpolation(getcelltype(get_grid(dh))))
     @assert !Ferrite.isclosed(dh)
     @assert !in(name, dh.field_names)
     push!(dh.field_names, name)
@@ -92,12 +92,9 @@ function getfielddim(dh::NODDofHandler, field_name::Symbol)
     return getfielddim(dh, field_idx)
 end
 # NOTE - REDUNDANT
-function Ferrite.getfieldinterpolation(dh::NODDofHandler, field_idx::Int)
-    ip = dh.field_interpolations[field_idx]
-    return ip
-end
+Ferrite.getfieldinterpolation(dh::NODDofHandler, field_idx::Int) = dh.field_interpolations[field_idx]
 # NOTE - REDUNDANT
-Ferrite.getfielddim(dh::NODDofHandler, field_idx::Int) = dh.field_dims[field_idx]
+getfielddim(dh::NODDofHandler, field_idx::Int) = dh.field_dims[field_idx]
 # NOTE - REDUNDANT
 function Ferrite.dof_range(dh::NODDofHandler, field_idx::Int)
     offset = field_offset(dh, field_idx)
@@ -121,7 +118,7 @@ Construct the correct distributed dof handler from a given distributed grid.
 """
 function Ferrite.DofHandler(grid::AbstractNODGrid{dim}) where {dim}
     isconcretetype(getcelltype(grid)) || error("Grid includes different celltypes. DistributedMixedDofHandler not implemented yet.")
-    NODDofHandler(Symbol[], Int[], Interpolation[], Ferrite.BCValues{Float64}[], Int[], Int[], Ferrite.ScalarWrapper(false), grid, Ferrite.ScalarWrapper(-1), Int[], Int32[])
+    NODDofHandler(Symbol[], Int[], Interpolation[], Ferrite.BCValues{Float64}[], Int[], Int[], false, grid, -1, Int[], Int32[])
 end
 
 # NOTE - REDUNDANT
@@ -140,7 +137,7 @@ function Base.show(io::IO, ::MIME"text/plain", dh::NODDofHandler)
 end
 
 # NOTE - REDUNDANT
-Ferrite.getdim(dh::NODDofHandler{dim}) where {dim} = dim 
+Ferrite.getspatialdim(dh::NODDofHandler{dim}) where {dim} = dim
 
 getlocalgrid(dh::NODDofHandler) = getlocalgrid(dh.grid)
 getglobalgrid(dh::NODDofHandler) = dh.grid
@@ -400,9 +397,9 @@ function local_to_global_numbering(dh::NODDofHandler{dim}) where {dim}
                 end # face loop
             end
 
-            if interpolation_info.ncelldofs > 0 # always distribute new dofs for cell
+            if interpolation_info.nvolumedofs > 0 # always distribute new dofs for cell
                 Ferrite.@debug println("    cell#$ci")
-                if interpolation_info.ncelldofs > 0
+                if interpolation_info.nvolumedofs > 0
                     # Update dof assignment
                     dof_local_indices = cell_dofs(dh, field_idx, ci)
                     if local_to_global[dof_local_indices[1]] == 0
@@ -808,9 +805,9 @@ function Ferrite.__close!(dh::NODDofHandler{dim}) where {dim}
                     end
                 end # face loop
             end
-            if interpolation_info.ncelldofs > 0 # always distribute new dofs for cell
+            if interpolation_info.nvolumedofs > 0 # always distribute new dofs for cell
                 @debug println("    cell#$ci")
-                for celldof in 1:interpolation_info.ncelldofs
+                for celldof in 1:interpolation_info.nvolumedofs
                     for d in 1:dh.field_dims[fi]
                         @debug println("      adding dof#$nextdof")
                         push!(dh.cell_dofs, nextdof)
@@ -822,15 +819,15 @@ function Ferrite.__close!(dh::NODDofHandler{dim}) where {dim}
         # push! the first index of the next cell to the offset vector
         push!(dh.cell_dofs_offset, length(dh.cell_dofs)+1)
     end # cell loop
-    dh.ndofs[] = maximum(dh.cell_dofs)
-    dh.closed[] = true
+    dh.ndofs = maximum(dh.cell_dofs)
+    dh.closed = true
 
     return dh, vertexdicts, edgedicts, facedicts
 end
 
 # NOTE - REDUNDANT
 function Ferrite.reinit!(cc::CellCache{<:Any,<:Ferrite.AbstractGrid,<:NODDofHandler}, i::Int)
-    cc.cellid[] = i
+    cc.cellid = i
     if cc.flags.nodes
         cellnodes!(cc.nodes, cc.grid, i)
     end
@@ -850,7 +847,7 @@ function Ferrite.CellCache(dh::NODDofHandler{dim}, flags::UpdateFlags=UpdateFlag
     coords = zeros(Vec{dim, get_coordinate_eltype(get_grid(dh))}, N)
     n = ndofs_per_cell(dh)
     celldofs = zeros(Int, n)
-    return Ferrite.CellCache(flags, get_grid(dh), ScalarWrapper(-1), nodes, coords, dh, celldofs)
+    return Ferrite.CellCache(flags, get_grid(dh), -1, nodes, coords, dh, celldofs)
 end
 
 # NOTE - REDUNDANT
@@ -877,13 +874,13 @@ function Ferrite._evaluate_at_grid_nodes(dh::NODDofHandler, u::Vector{T}, fieldn
     end
     # Loop over the subdofhandlers
     # for sdh in dh.subdofhandlers
-        sdh = SubDofHandler(dh, Set(1:getncells(dh.grid)), dh.field_names, dh.field_interpolations, dh.field_dims, ScalarWrapper(Ferrite.ndofs_per_cell(dh))) # FIXME This is just a fake subdofhandler.
+        sdh = SubDofHandler(dh, OrderedSet(1:getncells(dh.grid)), dh.field_names, dh.field_interpolations, dh.field_dims, Ferrite.ndofs_per_cell(dh)) # FIXME This is just a fake subdofhandler.
         # Check if this sdh contains this field, otherwise continue to the next
         field_idx = Ferrite.find_field(sdh, fieldname)
         # field_idx === nothing && continue
         # Set up CellValues with the local node coords as quadrature points
         CT = getcelltype(dh.grid, first(sdh.cellset))
-        ip_geo = default_interpolation(CT)
+        ip_geo = geometric_interpolation(CT)
         local_node_coords = reference_coordinates(ip_geo)
         qr = QuadratureRule{getrefshape(ip)}(zeros(length(local_node_coords)), local_node_coords)
         ip = getfieldinterpolation(sdh, field_idx)
@@ -953,9 +950,9 @@ function Ferrite.add!(ch::ConstraintHandler{DH}, dbc::Dirichlet) where {DH <: NO
     isempty(dbc.components) && append!(dbc.components, 1:field_dim)
 
     if eltype(dbc.faces)==Int #Special case when dbc.faces is a nodeset
-        bcvalue = BCValues(interpolation, default_interpolation(celltype), FaceIndex) #Not used by node bcs, but still have to pass it as an argument
+        bcvalue = BCValues(interpolation, geometric_interpolation(celltype), FaceIndex) #Not used by node bcs, but still have to pass it as an argument
     else
-        bcvalue = BCValues(interpolation, default_interpolation(celltype), eltype(dbc.faces))
+        bcvalue = BCValues(interpolation, geometric_interpolation(celltype), eltype(dbc.faces))
     end
     _add!(ch, dbc, dbc.faces, interpolation, field_dim, field_offset(ch.dh, dbc.field_name), bcvalue)
 

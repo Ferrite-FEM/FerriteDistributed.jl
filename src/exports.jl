@@ -2,6 +2,8 @@ export
     # ---- User facing ----
     # AbstractNODGrid,
     NODGrid,
+    NODDofHandler,
+    CoverTopology,
     generate_nod_grid,
     create_partitioning,
     vtk_shared_edges,
@@ -9,9 +11,11 @@ export
     vtk_shared_vertices,
     vtk_partitioning,
     # ----    Utils    ----
-    # global_comm,
-    # interface_comm,
-    # global_rank,
+    global_comm,
+    global_rank,
+    global_nranks,
+    getglobalgrid,
+    local_dof_range,
     compute_owner,
     get_shared_vertices,
     get_shared_vertex,
