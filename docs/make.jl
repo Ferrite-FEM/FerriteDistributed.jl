@@ -27,7 +27,7 @@ makedocs(
     sitename = "FerriteDistributed.jl",
     format = Documenter.HTML(),
     doctest = false,
-    warnonly = is_ci ? false : [:cross_references],
+    warnonly = true, # is_ci ? false : [:cross_references],
     draft = liveserver,
     pages = Any[
         "Home" => "index.md",
