@@ -56,11 +56,11 @@ function doassemble(cellvalues::CellValues, dh::NODDofHandler{dim}, ch::Constrai
     Ke = zeros(n_basefuncs, n_basefuncs)
     fe = zeros(n_basefuncs)
 
-    # --------------------- Distributed assembly --------------------
-    # The synchronization with the global sparse matrix is handled by
-    # an assembler again. You can choose from different backends, which
-    # are described in the docs and will be expanded over time. This call
-    # may trigger a large amount of communication.
+    ## --------------------- Distributed assembly --------------------
+    ## The synchronization with the global sparse matrix is handled by
+    ## an assembler again. You can choose from different backends, which
+    ## are described in the docs and will be expanded over time. This call
+    ## may trigger a large amount of communication.
     dgrid = getglobalgrid(dh)
     comm = global_comm(dgrid)
     ldofrange = local_dof_range(dh)
@@ -69,7 +69,7 @@ function doassemble(cellvalues::CellValues, dh::NODDofHandler{dim}, ch::Constrai
 
     assembler = start_assemble(K, f)
 
-    # For the local assembly nothing changes
+    ## For the local assembly nothing changes
     for cell in CellIterator(dh)
         fill!(Ke, 0)
         fill!(fe, 0)
@@ -83,7 +83,7 @@ function doassemble(cellvalues::CellValues, dh::NODDofHandler{dim}, ch::Constrai
             for i in 1:n_basefuncs
                 v  = shape_value(cellvalues, q_point, i)
                 ∇v = shape_gradient(cellvalues, q_point, i)
-                # Manufactured solution of Π cos(xᵢπ)
+                ## Manufactured solution of Π cos(xᵢπ)
                 x = spatial_coordinate(cellvalues, q_point, coords)
                 fe[i] += (π/2)^2 * dim * prod(cos, x*π/2) * v * dΩ
 
@@ -96,13 +96,13 @@ function doassemble(cellvalues::CellValues, dh::NODDofHandler{dim}, ch::Constrai
 
         apply_local!(Ke, fe, celldofs(cell), ch)
 
-        # TODO how to put this into an interface.
+        ## TODO how to put this into an interface.
         assemble!(assembler, dh.ldof_to_gdof[celldofs(cell)], Ke, fe)
     end
 
-    # Finally, for the `HYPREAssembler` we have to call
-    # `end_assemble` to construct the global sparse matrix and the global
-    # right hand side vector.
+    ## Finally, for the `HYPREAssembler` we have to call
+    ## `end_assemble` to construct the global sparse matrix and the global
+    ## right hand side vector.
     end_assemble(assembler)
 
     return K, f
@@ -127,9 +127,9 @@ FerriteDistributed.extract_local_part!(u_local, uₕ, dh)
 # to a VTK-file, which can be viewed in e.g. [ParaView](https://www.paraview.org/).
 PVTKGridFile("heat_equation_distributed", dh) do vtk
     write_solution(vtk, dh, u_local)
-    # For debugging purposes it can be helpful to enrich
-    # the visualization with some meta  information about
-    # the grid and its partitioning
+    ## For debugging purposes it can be helpful to enrich
+    ## the visualization with some meta  information about
+    ## the grid and its partitioning
     vtk_shared_vertices(vtk, dgrid)
     vtk_shared_faces(vtk, dgrid)
     vtk_shared_edges(vtk, dgrid) #src
