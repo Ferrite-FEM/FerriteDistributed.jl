@@ -2,7 +2,7 @@
 
 julia_version = "1.12.5"
 manifest_format = "2.0"
-project_hash = "c236b190df3a97b6a2e2cc07512aac273ab917a8"
+project_hash = "794eb5531cdf71750024ae81b406586fde75b759"
 
 [[deps.ANSIColoredPrinters]]
 git-tree-sha1 = "574baf8110975760d391c710b6341da1afa48d8c"
@@ -263,10 +263,16 @@ weakdeps = ["BlockArrays", "Metis", "SparseMatricesCSR"]
     FerriteSparseMatrixCSR = "SparseMatricesCSR"
 
 [[deps.FerriteDistributed]]
-deps = ["Ferrite", "MPI", "MPIPreferences", "OrderedCollections", "Reexport", "SparseArrays"]
+deps = ["Ferrite", "MPI", "MPIPreferences", "OrderedCollections", "Reexport", "SparseArrays", "WriteVTK"]
 path = ".."
 uuid = "570c3397-5fe4-4792-be0d-48dbf0d14605"
 version = "0.0.1-DEV"
+weakdeps = ["HYPRE", "Metis", "PartitionedArrays"]
+
+    [deps.FerriteDistributed.extensions]
+    FerriteDistributedHYPREAssembly = "HYPRE"
+    FerriteDistributedMetisPartitioning = "Metis"
+    FerriteDistributedPartitionedArrays = "PartitionedArrays"
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"

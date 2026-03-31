@@ -4,6 +4,7 @@ export
     NODGrid,
     NODDofHandler,
     CoverTopology,
+    PVTKGridFile,
     generate_nod_grid,
     create_partitioning,
     vtk_shared_edges,

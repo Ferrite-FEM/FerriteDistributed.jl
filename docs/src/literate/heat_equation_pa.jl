@@ -92,7 +92,7 @@ function doassemble(cellvalues::CellValues, dh::NODDofHandler{dim}) where {dim}
         end
 
         # Note that this call should be communication-free!
-        Ferrite.assemble!(assembler, celldofs(cell), fe, Ke)
+        Ferrite.assemble!(assembler, celldofs(cell), Ke, fe)
     end
 
     # Finally, for the `PartitionedArraysCOOAssembler` we have to call
@@ -116,8 +116,8 @@ u = cg(K, f)
 # ### Exporting via PVTK
 # To visualize the result we export the grid and our field `u`
 # to a VTK-file, which can be viewed in e.g. [ParaView](https://www.paraview.org/).
-vtk_grid("heat_equation_distributed", dh) do vtk
-    vtk_point_data(vtk, dh, u)
+PVTKGridFile("heat_equation_distributed", dh) do vtk
+    write_solution(vtk, dh, u)
     # For debugging purposes it can be helpful to enrich 
     # the visualization with some meta  information about 
     # the grid and its partitioning
@@ -129,12 +129,26 @@ end
 
 ## Test the result against the manufactured solution                    #src
 using Test                                                              #src
+## Compute NOD→OAG permutation for PVector local value access          #src
+my_rank = global_rank(dgrid)                                            #src
+n_own = count(==(my_rank), dh.ldof_to_rank)                             #src
+_perm = Vector{Int}(undef, length(dh.ldof_to_gdof))                    #src
+_oi = 0                                                                 #src
+_gi = 0                                                                 #src
+for i in eachindex(_perm)                                               #src
+    global _oi, _gi                                                     #src
+    if dh.ldof_to_rank[i] == my_rank                                    #src
+        _oi += 1; _perm[i] = _oi                                        #src
+    else                                                                #src
+        _gi += 1; _perm[i] = n_own + _gi                                #src
+    end                                                                 #src
+end                                                                     #src
 for cell in CellIterator(dh)                                            #src
     reinit!(cellvalues, cell)                                           #src
     n_basefuncs = getnbasefunctions(cellvalues)                         #src
     coords = getcoordinates(cell)                                       #src
     map(local_values(u)) do u_local                         #src
-        uₑ = u_local[celldofs(cell)]                                    #src
+        uₑ = u_local[_perm[celldofs(cell)]]                             #src
         for q_point in 1:getnquadpoints(cellvalues)                     #src
             x = spatial_coordinate(cellvalues, q_point, coords)         #src
             for i in 1:n_basefuncs                                      #src

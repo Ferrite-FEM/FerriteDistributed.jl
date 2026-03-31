@@ -16,6 +16,7 @@ import Ferrite: get_coordinate_eltype, @debug,
     BCValues
 
 import Ferrite: WriteVTK
+using WriteVTK: MeshCell, pvtk_grid, vtk_point_data, vtk_cell_data
 
 include("utils.jl")
 

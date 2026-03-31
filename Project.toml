@@ -10,6 +10,7 @@ MPIPreferences = "3da0fdf6-3ccc-4f1b-acd9-58baa6c99267"
 OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 
 [weakdeps]
 HYPRE = "b5ffcf37-a2bd-41ab-a3da-4bd9bc8ad771"

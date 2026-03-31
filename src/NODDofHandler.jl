@@ -928,7 +928,7 @@ end
 
 # TODO REMOVEME - This is legacy code ported to make the example work as is on the distributed assembly PR
 function Ferrite.add!(ch::ConstraintHandler{DH}, dbc::Dirichlet) where {DH <: NODDofHandler}
-    if length(dbc.faces) == 0
+    if length(dbc.facets) == 0
         @warn("adding Dirichlet Boundary Condition to set containing 0 entities")
     end
     celltype = getcelltype(get_grid(ch.dh))
@@ -949,35 +949,34 @@ function Ferrite.add!(ch::ConstraintHandler{DH}, dbc::Dirichlet) where {DH <: NO
     # Empty components means constrain them all
     isempty(dbc.components) && append!(dbc.components, 1:field_dim)
 
-    if eltype(dbc.faces)==Int #Special case when dbc.faces is a nodeset
-        bcvalue = BCValues(interpolation, geometric_interpolation(celltype), FaceIndex) #Not used by node bcs, but still have to pass it as an argument
-    else
-        bcvalue = BCValues(interpolation, geometric_interpolation(celltype), eltype(dbc.faces))
+    EntityType = eltype(dbc.facets)
+    if EntityType <: Integer
+        EntityType = FacetIndex
     end
-    _add!(ch, dbc, dbc.faces, interpolation, field_dim, field_offset(ch.dh, dbc.field_name), bcvalue)
+    bcvalue = BCValues(interpolation, geometric_interpolation(celltype), EntityType)
+    _add!(ch, dbc, dbc.facets, interpolation, field_dim, field_offset(ch.dh, dbc.field_name), bcvalue)
 
     return ch
 end
 
 
-function _add!(ch::ConstraintHandler, dbc::Dirichlet, bcfaces::Set{Index}, interpolation::Interpolation, field_dim::Int, offset::Int, bcvalue::BCValues, cellset::Set{Int}=Set{Int}(1:getncells(get_grid(ch.dh)))) where {Index<:BoundaryIndex}
-    local_face_dofs, local_face_dofs_offset =
-        _local_face_dofs_for_bc(interpolation, field_dim, dbc.components, offset, boundaryfunction(eltype(bcfaces)))
-    copy!(dbc.local_face_dofs, local_face_dofs)
-    copy!(dbc.local_face_dofs_offset, local_face_dofs_offset)
+function _add!(ch::ConstraintHandler, dbc::Dirichlet, bcfacets::Ferrite.AbstractVecOrSet{Index}, interpolation::Interpolation, field_dim::Int, offset::Int, bcvalue::BCValues, cellset::OrderedSet{Int}=OrderedSet{Int}(1:getncells(get_grid(ch.dh)))) where {Index<:BoundaryIndex}
+    local_facet_dofs, local_facet_dofs_offset =
+        Ferrite._local_facet_dofs_for_bc(interpolation, field_dim, dbc.components, offset, Ferrite.dirichlet_boundarydof_indices(eltype(bcfacets)))
+    copy!(dbc.local_facet_dofs, local_facet_dofs)
+    copy!(dbc.local_facet_dofs_offset, local_facet_dofs_offset)
 
-    # loop over all the faces in the set and add the global dofs to `constrained_dofs`
+    # loop over all the facets in the set and add the global dofs to `constrained_dofs`
     constrained_dofs = Int[]
     cc = CellCache(ch.dh, UpdateFlags(; nodes=false, coords=false, dofs=true))
-    for (cellidx, faceidx) in bcfaces
+    for (cellidx, facetidx) in bcfacets
         if cellidx ∉ cellset
-            delete!(dbc.faces, Index(cellidx, faceidx))
-            continue # skip faces that are not part of the cellset
+            continue # skip facets that are not part of the cellset
         end
         reinit!(cc, cellidx)
-        r = local_face_dofs_offset[faceidx]:(local_face_dofs_offset[faceidx+1]-1)
-        append!(constrained_dofs, cc.dofs[local_face_dofs[r]]) # TODO: for-loop over r and simply push! to ch.prescribed_dofs
-        @debug println("adding dofs $(cc.dofs[local_face_dofs[r]]) to dbc")
+        r = local_facet_dofs_offset[facetidx]:(local_facet_dofs_offset[facetidx+1]-1)
+        append!(constrained_dofs, cc.dofs[local_facet_dofs[r]]) # TODO: for-loop over r and simply push! to ch.prescribed_dofs
+        @debug println("adding dofs $(cc.dofs[local_facet_dofs[r]]) to dbc")
     end
 
     # save it to the ConstraintHandler
@@ -989,20 +988,8 @@ function _add!(ch::ConstraintHandler, dbc::Dirichlet, bcfaces::Set{Index}, inter
     return ch
 end
 
-function _local_face_dofs_for_bc(interpolation, field_dim, components, offset, boundaryfunc::F=faces) where F
-    @assert issorted(components)
-    local_face_dofs = Int[]
-    local_face_dofs_offset = Int[1]
-    for (_, face) in enumerate(boundaryfunc(interpolation))
-        for fdof in face, d in 1:field_dim
-            if d in components
-                push!(local_face_dofs, (fdof-1)*field_dim + d + offset)
-            end
-        end
-        push!(local_face_dofs_offset, length(local_face_dofs) + 1)
-    end
-    return local_face_dofs, local_face_dofs_offset
-end
+
+
 
 # NOTE - REDUNDANT
 function Ferrite.CellIterator(dh::NODDofHandler,

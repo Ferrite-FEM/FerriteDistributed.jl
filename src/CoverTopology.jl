@@ -186,7 +186,7 @@ in the returned list.
     This feature is highly experimental and very likely subjected to interface changes in the future.
 """
 function Ferrite.getneighborhood(top::CoverTopology, grid::Ferrite.AbstractGrid, cellidx::CellIndex, include_self=false)
-    patch = top.cell_neighbor[cellidx[1]]
+    patch = top.cell_neighbor[cellidx.idx]
     if include_self
         return [patch; cellidx]
     else

@@ -97,7 +97,7 @@ function doassemble(cellvalues::CellValues, dh::NODDofHandler{dim}, ch::Constrai
         apply_local!(Ke, fe, celldofs(cell), ch)
 
         # TODO how to put this into an interface.
-        assemble!(assembler, dh.ldof_to_gdof[celldofs(cell)], fe, Ke)
+        assemble!(assembler, dh.ldof_to_gdof[celldofs(cell)], Ke, fe)
     end
 
     # Finally, for the `HYPREAssembler` we have to call
@@ -125,8 +125,8 @@ FerriteDistributed.extract_local_part!(u_local, uₕ, dh)
 # ### Exporting via PVTK
 # To visualize the result we export the grid and our field `u`
 # to a VTK-file, which can be viewed in e.g. [ParaView](https://www.paraview.org/).
-vtk_grid("heat_equation_distributed", dh) do vtk
-    vtk_point_data(vtk, dh, u_local)
+PVTKGridFile("heat_equation_distributed", dh) do vtk
+    write_solution(vtk, dh, u_local)
     # For debugging purposes it can be helpful to enrich
     # the visualization with some meta  information about
     # the grid and its partitioning
