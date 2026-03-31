@@ -30,6 +30,35 @@ function _nod_to_oag_perm(dh)
 end
 
 """
+    gather_dof_values!(u_local::AbstractVector, u::PVector, dh::NODDofHandler) -> u_local
+
+Gather local values from a distributed `PVector` into `u_local`, ordered by `dh`'s local
+DOF indices. After calling this, `u_local[celldofs(cell)]` gives the correct element DOF
+values.
+"""
+function FerriteDistributed.gather_dof_values!(u_local::AbstractVector, u::PVector, dh::FerriteDistributed.NODDofHandler)
+    perm = _nod_to_oag_perm(dh)
+    map(local_values(u)) do u_oag
+        for i in eachindex(perm)
+            u_local[i] = u_oag[perm[i]]
+        end
+    end
+    return u_local
+end
+
+"""
+    gather_dof_values(u::PVector, dh::NODDofHandler) -> Vector
+
+Allocating version of `gather_dof_values!`. Returns a `Vector` of local DOF values ordered
+by `dh`'s local DOF indices.
+"""
+function FerriteDistributed.gather_dof_values(u::PVector, dh::FerriteDistributed.NODDofHandler)
+    nldofs = FerriteDistributed.num_local_dofs(dh)
+    u_local = zeros(nldofs)
+    return FerriteDistributed.gather_dof_values!(u_local, u, dh)
+end
+
+"""
 Simplest partitioned assembler in COO format to obtain a PSparseMatrix and a PVector.
 """
 struct COOAssembler{T}

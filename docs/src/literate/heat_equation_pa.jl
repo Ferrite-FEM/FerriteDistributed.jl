@@ -129,33 +129,18 @@ end
 
 ## Test the result against the manufactured solution                    #src
 using Test                                                              #src
-## Compute NOD→OAG permutation for PVector local value access          #src
-my_rank = global_rank(dgrid)                                            #src
-n_own = count(==(my_rank), dh.ldof_to_rank)                             #src
-_perm = Vector{Int}(undef, length(dh.ldof_to_gdof))                    #src
-_oi = 0                                                                 #src
-_gi = 0                                                                 #src
-for i in eachindex(_perm)                                               #src
-    global _oi, _gi                                                     #src
-    if dh.ldof_to_rank[i] == my_rank                                    #src
-        _oi += 1; _perm[i] = _oi                                        #src
-    else                                                                #src
-        _gi += 1; _perm[i] = n_own + _gi                                #src
-    end                                                                 #src
-end                                                                     #src
+u_local = gather_dof_values(u, dh)                                      #src
 for cell in CellIterator(dh)                                            #src
     reinit!(cellvalues, cell)                                           #src
     n_basefuncs = getnbasefunctions(cellvalues)                         #src
     coords = getcoordinates(cell)                                       #src
-    map(local_values(u)) do u_local                         #src
-        uₑ = u_local[_perm[celldofs(cell)]]                             #src
-        for q_point in 1:getnquadpoints(cellvalues)                     #src
-            x = spatial_coordinate(cellvalues, q_point, coords)         #src
-            for i in 1:n_basefuncs                                      #src
-                uₐₙₐ    = prod(cos, x*π/2)+dbc_val                      #src
-                uₐₚₚᵣₒₓ = function_value(cellvalues, q_point, uₑ)       #src
-                @test isapprox(uₐₙₐ, uₐₚₚᵣₒₓ; atol=1e-1)                #src
-            end                                                         #src
+    uₑ = u_local[celldofs(cell)]                                        #src
+    for q_point in 1:getnquadpoints(cellvalues)                         #src
+        x = spatial_coordinate(cellvalues, q_point, coords)             #src
+        for i in 1:n_basefuncs                                          #src
+            uₐₙₐ    = prod(cos, x*π/2)+dbc_val                          #src
+            uₐₚₚᵣₒₓ = function_value(cellvalues, q_point, uₑ)           #src
+            @test isapprox(uₐₙₐ, uₐₚₚᵣₒₓ; atol=1e-1)                    #src
         end                                                             #src
     end                                                                 #src
 end                                                                     #src

@@ -36,4 +36,6 @@ export
     cell_dofs,
     has_cell_dofs,
     edge_dofs,
-    has_edge_dofs
+    has_edge_dofs,
+    gather_dof_values,
+    gather_dof_values!

@@ -10,6 +10,8 @@ if liveserver
     @timeit dto "Revise.revise()" Revise.revise()
 end
 
+const is_ci = haskey(ENV, "GITHUB_ACTIONS")
+
 using Documenter
 using FerriteDistributed
 
@@ -25,8 +27,8 @@ makedocs(
     sitename = "FerriteDistributed.jl",
     format = Documenter.HTML(),
     doctest = false,
-    strict = false,
-    draft = true,
+    warnonly = is_ci ? false : [:cross_references],
+    draft = liveserver,
     pages = Any[
         "Home" => "index.md",
         "Examples" => [GENERATEDEXAMPLES;],
