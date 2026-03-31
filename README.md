@@ -7,9 +7,6 @@ This package contains the distributed assembly infrastructure for [Ferrite.jl](h
 > [!IMPORTANT]
 > This package is still experimental. Breaking changes on the design can be expected. Feedback is appreciated.
 
-> [!NOTE]
-> The current implementation is tested with [Ferrite#7e8a571](https://github.com/Ferrite-FEM/Ferrite.jl/commit/7e8a57150738094bb951d6e672fdeed205d0a1ff). This package is not compatible with the latest Ferrite release (0.3.14).
-
 ## Documentation
 
 [![][docs-dev-img]][docs-dev-url]
@@ -17,7 +14,7 @@ This package contains the distributed assembly infrastructure for [Ferrite.jl](h
 ## Installation
 You can install FerriteDistributed from the Pkg REPL:
 ```
-pkg> add Ferrite#7e8a571, FerriteDistributed
+pkg> add Ferrite, https://github.com/Ferrite-FEM/FerriteDistributed.jl
 ```
 
 > [!NOTE]
