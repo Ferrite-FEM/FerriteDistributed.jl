@@ -147,21 +147,3 @@ Entry point for extensions to register a transfer function translating the solut
 to a Ferrite compatible vector.
 """
 extract_local_part!(u_ferrite::Vector, u_extension, dh::Ferrite.AbstractDofHandler) = error("Not implemented.")
-
-"""
-    gather_dof_values!(u_local::AbstractVector, u, dh::Ferrite.AbstractDofHandler) -> u_local
-
-Gather local values from a distributed vector `u` into `u_local`, ordered by `dh`'s local
-DOF indices. After calling this, `u_local[celldofs(cell)]` gives the correct element DOF
-values. Extensions should implement this for their distributed vector types.
-"""
-function gather_dof_values! end
-
-"""
-    gather_dof_values(u, dh::Ferrite.AbstractDofHandler) -> Vector
-
-Allocating version of [`gather_dof_values!`](@ref). Returns a `Vector` of local DOF values
-ordered by `dh`'s local DOF indices, so `result[celldofs(cell)]` gives the correct element
-DOF values.
-"""
-function gather_dof_values end
