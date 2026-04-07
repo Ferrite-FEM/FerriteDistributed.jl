@@ -4,7 +4,7 @@ DocTestSetup = :(using FerriteDistributed)
 
 # FerriteDistributed.jl
 
-Non-overlapping distributed grids for [Ferrite.jl](https://github.com/Ferrite-FEM/Ferrite.jl).
+Distributed grids and assembly with [Ferrite.jl](https://github.com/Ferrite-FEM/Ferrite.jl).
 
 !!! note
 

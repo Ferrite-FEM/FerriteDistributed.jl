@@ -3,6 +3,50 @@ function Ferrite.create_sparsity_pattern(::Type{<:PSparseMatrix}, dh::Ferrite.Ab
 end
 
 """
+    _nod_to_oag_perm(dh)
+
+Compute a permutation mapping NODDofHandler local dof indices to OwnAndGhostIndices
+local indices. OwnAndGhostIndices always places owned dofs first (1:n_own) then ghost
+dofs (n_own+1:n), while NODDofHandler interleaves them. This permutation is needed
+to correctly index into PVector/PSparseMatrix local values using dof handler indices.
+"""
+function _nod_to_oag_perm(dh)
+    my_rank = global_rank(getglobalgrid(dh))
+    nldofs = num_local_dofs(dh)
+    n_own = count(==(my_rank), dh.ldof_to_rank)
+    perm = Vector{Int}(undef, nldofs)
+    own_i = 0
+    ghost_i = 0
+    for i in 1:nldofs
+        if dh.ldof_to_rank[i] == my_rank
+            own_i += 1
+            perm[i] = own_i
+        else
+            ghost_i += 1
+            perm[i] = n_own + ghost_i
+        end
+    end
+    return perm
+end
+
+"""
+    extract_local_part!(u_local::AbstractVector, u::PVector, dh::NODDofHandler)
+
+Gather local values from a distributed `PVector` into `u_local`, ordered by `dh`'s local
+DOF indices. After calling this, `u_local[celldofs(cell)]` gives the correct element DOF
+values.
+"""
+function FerriteDistributed.extract_local_part!(u_local::Vector, u::PVector, dh::FerriteDistributed.NODDofHandler)
+    perm = _nod_to_oag_perm(dh)
+    map(local_values(u)) do u_oag
+        for i in eachindex(perm)
+            u_local[i] = u_oag[perm[i]]
+        end
+    end
+    return u_local
+end
+
+"""
 Simplest partitioned assembler in COO format to obtain a PSparseMatrix and a PVector.
 """
 struct COOAssembler{T}
@@ -16,6 +60,7 @@ struct COOAssembler{T}
 
     👻remotes
     dh
+    perm::Vector{Int}  # NODDofHandler local index → OAG local index
 
     # TODO PartitionedArrays backend as additional input arg
     # TODO fix type
@@ -25,7 +70,7 @@ struct COOAssembler{T}
         nldofs = num_local_dofs(dh)
         ngdofs = num_global_dofs(dh)
         dgrid = getglobalgrid(dh)
-        dim = getdim(dgrid)
+        dim = Ferrite.getspatialdim(dgrid)
 
         I = Int[]
         J = Int[]
@@ -81,11 +126,17 @@ struct COOAssembler{T}
         # distributed matrix.
         # We decide for row (i.e. test function) ownership, because it the image of
         # SpMV is process local.
-        # row_indices = PartitionedArrays.IndexSet(my_rank, ldof_to_gdof, Int32.(ldof_to_rank))
-        # row_data = MPIData(row_indices, comm, (np,))
-        # row_exchanger = Exchanger(row_data)
-        # rows = PRange(ngdofs,row_data,row_exchanger)
-        row_partition_indices = PartitionedArrays.LocalIndices(ngdofs, Int32(my_rank), ldof_to_gdof, Int32.(ldof_to_rank))
+        row_own_to_global = ldof_to_gdof[ltdof_indices]
+        row_ghost_mask = .!ltdof_indices
+        row_ghost_to_global = ldof_to_gdof[row_ghost_mask]
+        row_ghost_to_owner = Int32.(ldof_to_rank[row_ghost_mask])
+        row_g2o = Dict{Int,Int32}()
+        for (g, o) in zip(ldof_to_gdof, Int32.(ldof_to_rank))
+            row_g2o[g] = o
+        end
+        row_own = OwnIndices(ngdofs, Int32(my_rank), row_own_to_global)
+        row_ghost = GhostIndices(ngdofs, row_ghost_to_global, row_ghost_to_owner)
+        row_partition_indices = OwnAndGhostIndices(row_own, row_ghost, gid -> get(row_g2o, gid, Int32(0)))
         rows = MPIArray(row_partition_indices, comm, (np,))
 
         Ferrite.@debug println("rows done (R$my_rank)")
@@ -259,11 +310,17 @@ struct COOAssembler{T}
         Ferrite.@debug println("all_local_cols $all_local_cols (R$my_rank)")
         Ferrite.@debug println("all_local_col_ranks $all_local_col_ranks (R$my_rank)")
 
-        # col_indices = PartitionedArrays.IndexSet(my_rank, all_local_cols, all_local_col_ranks)
-        # col_data = MPIData(col_indices, comm, (np,))
-        # col_exchanger = Exchanger(col_data)
-        # cols = PRange(ngdofs,col_data,col_exchanger)
-        col_partition_indices = PartitionedArrays.LocalIndices(ngdofs, Int32(my_rank), all_local_cols, all_local_col_ranks)
+        col_own_mask = all_local_col_ranks .== my_rank
+        col_own_to_global = all_local_cols[col_own_mask]
+        col_ghost_to_global = all_local_cols[.!col_own_mask]
+        col_ghost_to_owner = all_local_col_ranks[.!col_own_mask]
+        col_g2o = Dict{Int,Int32}()
+        for (g, o) in zip(all_local_cols, all_local_col_ranks)
+            col_g2o[g] = o
+        end
+        col_own = OwnIndices(ngdofs, Int32(my_rank), col_own_to_global)
+        col_ghost = GhostIndices(ngdofs, col_ghost_to_global, col_ghost_to_owner)
+        col_partition_indices = OwnAndGhostIndices(col_own, col_ghost, gid -> get(col_g2o, gid, Int32(0)))
         cols = MPIArray(col_partition_indices, comm, (np,))
 
         Ferrite.@debug println("cols and rows constructed (R$my_rank)")
@@ -273,7 +330,9 @@ struct COOAssembler{T}
         👻remotes = zip(ghost_recv_buffer_dofs_piv, ghost_recv_buffer_dofs, ghost_recv_buffer_ranks,ghost_recv_buffer_fields)
         Ferrite.@debug println("👻remotes $👻remotes (R$my_rank)")
 
-        return new(I, J, V, cols, rows, f, 👻remotes, dh)
+        perm = _nod_to_oag_perm(dh)
+
+        return new(I, J, V, cols, rows, f, 👻remotes, dh, perm)
     end
 end
 
@@ -292,10 +351,11 @@ Ferrite.start_assemble(dh, _::MPIArray) = COOAssembler{Float64}(dh)
     end
 end
 
-@propagate_inbounds function Ferrite.assemble!(a::COOAssembler{T}, dofs::AbstractVector{Int}, fe::AbstractVector{T}, Ke::AbstractMatrix{T}) where {T}
+@propagate_inbounds function Ferrite.assemble!(a::COOAssembler{T}, dofs::AbstractVector{Int}, Ke::AbstractMatrix{T}, fe::AbstractVector{T}) where {T}
     Ferrite.assemble!(a, dofs, Ke)
+    mapped_dofs = a.perm[dofs]
     map(local_values(a.f)) do f_local
-        Ferrite.assemble!(f_local, dofs, fe)
+        Ferrite.assemble!(f_local, mapped_dofs, fe)
     end
 end
 
@@ -325,18 +385,16 @@ function Ferrite.end_assemble(assembler::COOAssembler{T}) where {T}
 
     Ferrite.@debug println("I=$(I) (R$my_rank)")
     Ferrite.@debug println("J=$(J) (R$my_rank)")
-    K = PartitionedArrays.psparse!(
+    K = PartitionedArrays.psparse(
         MPIArray(I, comm, (np,)),
         MPIArray(J, comm, (np,)),
         MPIArray(V, comm, (np,)),
-        assembler.rows, assembler.cols
-        ;discover_rows=false,discover_cols=false
+        assembler.rows, assembler.cols;
+        split_format=Val(false)
     ) |> fetch
 
-    PartitionedArrays.assemble!(K) |> wait
-    # PartitionedArrays.consistent!(K) |> wait
+    # psparse already assembles K by default (assemble=Val(true))
     PartitionedArrays.assemble!(assembler.f) |> wait
-    # PartitionedArrays.consistent!(assembler.f) |> wait
 
     return K, assembler.f
 end

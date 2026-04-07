@@ -15,12 +15,15 @@ Poor man's Dirichlet BC application for PartitionedArrays. :)
     TODO integrate with constraints.
 """
 function Ferrite.apply_zero!(K::PartitionedArrays.PSparseMatrix, f::PartitionedArrays.PVector, ch::ConstraintHandler)
+    perm = _nod_to_oag_perm(ch.dh)
+    pdofs = perm[ch.prescribed_dofs]
+
     map(local_values(f)) do f_local
-        f_local[ch.prescribed_dofs] .= 0.0
+        f_local[pdofs] .= 0.0
     end
 
     map(local_values(K), local_values(f)) do K_local, f_local
-        for cdof in ch.prescribed_dofs
+        for cdof in pdofs
             K_local[cdof, :] .= 0.0
             K_local[:, cdof] .= 0.0
             K_local[cdof, cdof] = 1.0
@@ -34,24 +37,30 @@ Poor man's Dirichlet BC application for PartitionedArrays. :)
     TODO optimize.
 """
 function Ferrite.apply!(K::PartitionedArrays.PSparseMatrix, f::PartitionedArrays.PVector, ch::ConstraintHandler)
+    perm = _nod_to_oag_perm(ch.dh)
+    pdofs = perm[ch.prescribed_dofs]
+
     # Start by substracting the inhomogeneous solution from the right hand side
     u_constrained = PartitionedArrays.pzeros(K.col_partition)
     map(local_values(u_constrained)) do u_local
-        u_local[ch.prescribed_dofs] .= ch.inhomogeneities
+        u_local[pdofs] .= ch.inhomogeneities
     end
     f .-= K*u_constrained
 
     m = Ferrite.meandiag(K)
 
-    # Then fix the 
+    comm = f.index_partition.comm
+
+    # Then fix the RHS
     map(local_values(f), f.index_partition) do f_local, partition
         # Note: RHS only non-zero for owned RHS entries
-        f_local[ch.prescribed_dofs] .= ch.inhomogeneities .* map(p -> p == MPI.Comm_rank(f.cache.comm)+1, partition.local_to_owner[ch.prescribed_dofs]) * m
+        lto = local_to_owner(partition)
+        f_local[pdofs] .= ch.inhomogeneities .* map(p -> p == MPI.Comm_rank(comm)+1, lto[pdofs]) * m
     end
 
     # Zero out locally visible rows and columns
     map(local_values(K)) do K_local
-        for cdof ∈ ch.prescribed_dofs
+        for cdof ∈ pdofs
             K_local[cdof, :] .= 0.0
             K_local[:, cdof] .= 0.0
             K_local[cdof, cdof] = m
@@ -63,26 +72,19 @@ function Ferrite.apply!(K::PartitionedArrays.PSparseMatrix, f::PartitionedArrays
     #      via the column information of the matrix.
 
     # Step 1: Send out all local ghosts to all other processes...
-    # remote_ghost_gdofs, remote_ghost_parts = map(K.col_partition) do partition
-        partition = K.col_partition.item_ref[]
-        remote_ghost_ldofs = partition.ghost_to_local
-        @show remote_ghost_ldofs
-        remote_ghost_parts = partition.local_to_owner[remote_ghost_ldofs]
-        @show remote_ghost_parts
-        remote_ghost_gdofs = partition.local_to_global[remote_ghost_ldofs]
-        @show remote_ghost_gdofs
-        # return (remote_ghost_gdofs, remote_ghost_parts)
-    # end
+        partition = K.col_partition.item
+        remote_ghost_ldofs = ghost_to_local(partition)
+        lto = local_to_owner(partition)
+        remote_ghost_parts = lto[remote_ghost_ldofs]
+        ltg = local_to_global(partition)
+        remote_ghost_gdofs = ltg[remote_ghost_ldofs]
 
-    comm = f.cache.comm
     my_rank = MPI.Comm_rank(comm)+1
     buffer_sizes_send = zeros(Cint, MPI.Comm_size(comm))
     buffer_sizes_recv = Vector{Cint}(undef, MPI.Comm_size(comm))
-    # map(remote_ghost_parts) do remote_ghost_parts_local
         for part ∈ remote_ghost_parts
             buffer_sizes_send[part] += 1
         end
-    # end
     MPI.Alltoall!(UBuffer(buffer_sizes_send, 1), UBuffer(buffer_sizes_recv, 1), comm)
     Ferrite.@debug println("Got $buffer_sizes_recv (R$my_rank)")
 
@@ -93,8 +95,9 @@ function Ferrite.apply!(K::PartitionedArrays.PSparseMatrix, f::PartitionedArrays
     # Step 2: Union with all locally constrained dofs
     Ferrite.@debug println("$my_rank : Step 2....")
     remote_ghosts_constrained_send = copy(remote_ghosts_recv)
+    prescribed_gdofs = ltg[pdofs]
     for (i, remote_ghost_dof) ∈ enumerate(remote_ghosts_recv)
-        remote_ghosts_constrained_send[i] = remote_ghost_dof ∈ partition.local_to_global[ch.prescribed_dofs]
+        remote_ghosts_constrained_send[i] = remote_ghost_dof ∈ prescribed_gdofs
     end
 
     # Step 3: Send trash back

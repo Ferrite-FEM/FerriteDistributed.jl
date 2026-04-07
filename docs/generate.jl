@@ -26,21 +26,20 @@ mkpath(GENERATEDDIR)
         code_clean = replace(code_clean, r"^# This file was generated .*$"m => "")
         code_clean = strip(code_clean)
 
-        mdpost(str) = replace(str, "@__CODE__" => code_clean)
-        function nbpre(str)
-            # \llbracket and \rr bracket not supported by MathJax (Jupyter/nbviewer)
-            str = replace(str, "\\llbracket" => "[\\![", "\\rrbracket" => "]\\!]")
+        function mdpost(str)
+            str = replace(str, "@__CODE__" => code_clean)
+            # MPI examples cannot run in Documenter's serial build process,
+            # so convert @example blocks to static julia code blocks
+            # (mimicking MPI.jl's docs approach).
+            str = replace(str, r"^````@example\s+\S+\s*$"m => "````julia")
+            # Remove lines that only exist to hide output in @example blocks
+            str = replace(str, r"^nothing\s+#\s*hide\s*\n"m => "")
             return str
         end
 
         @timeit dto "markdown()" @timeit dto name begin
-            Literate.markdown(input, GENERATEDDIR, postprocess = mdpost)
+            Literate.markdown(input, GENERATEDDIR, postprocess = mdpost, execute=true)
         end
-        # if !liveserver
-        #     @timeit dto "notebook()"  @timeit dto name begin
-        #         Literate.notebook(input, GENERATEDDIR, preprocess = nbpre, execute = is_ci) # Don't execute locally
-        #     end
-        # end
     elseif any(endswith.(example, [".png", ".jpg", ".gif"]))
         cp(joinpath(EXAMPLEDIR, example), joinpath(GENERATEDDIR, example); force=true)
     else
