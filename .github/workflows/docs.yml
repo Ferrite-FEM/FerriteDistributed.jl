@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: julia --project=docs -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
       - name: Setup OpenMPI
-        run: julia --project=docs -e 'using MPIPreferences; MPIPreferences.use_jll_binary("OpenMPI_jll"); Pkg.precompile()'
+        run: julia --project=docs -e 'using Pkg, MPIPreferences; MPIPreferences.use_jll_binary("OpenMPI_jll"); Pkg.precompile()'
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
