@@ -17,6 +17,8 @@ jobs:
         with:
           version: '1.12'
       - uses: julia-actions/cache@v3
+      - name: Setup OpenMPI
+        run: julia --project=docs -e 'using MPIPreferences; MPIPreferences.use_jll_binary("OpenMPI_jll")'
       - name: Install dependencies
         run: julia --project=docs -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
       - name: Build and deploy
@@ -24,4 +26,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
           GKSwstype: '100'
-        run: julia --project=docs --color=yes docs/make.jl
+        run: mpiexecjl -np 1 julia --project=docs --color=yes docs/make.jl

@@ -38,7 +38,7 @@ mkpath(GENERATEDDIR)
         end
 
         @timeit dto "markdown()" @timeit dto name begin
-            Literate.markdown(input, GENERATEDDIR, postprocess = mdpost)
+            Literate.markdown(input, GENERATEDDIR, postprocess = mdpost, execute=true)
         end
     elseif any(endswith.(example, [".png", ".jpg", ".gif"]))
         cp(joinpath(EXAMPLEDIR, example), joinpath(GENERATEDDIR, example); force=true)

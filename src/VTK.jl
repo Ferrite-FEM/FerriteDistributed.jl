@@ -56,6 +56,7 @@ Each field in `dh` will be saved separately, and `suffix` can be used to append
 to the fieldname.
 """
 function Ferrite.write_solution(vtk::PVTKGridFile, dh::NODDofHandler, u::AbstractVector, suffix="")
+    # TODO convert NODDofHandler to DofHandler before write
     for name in getfieldnames(dh)
         data = Ferrite._evaluate_at_grid_nodes(dh, u, name, Val(true))
         Ferrite._vtk_write_node_data(vtk.vtk.vtk, data, string(name, suffix))

@@ -120,7 +120,7 @@ uₕ = HYPRE.solve(solver, K, f)
 
 # And convert the solution from HYPRE to Ferrite
 u_local = Vector{Float64}(undef, FerriteDistributed.num_local_dofs(dh))
-FerriteDistributed.extract_local_part!(u_local, uₕ, dh)
+FerriteDistributed.extract_local_part!(u_local, uₕ, dh);
 
 # ### Exporting via PVTK
 # To visualize the result we export the grid and our field `u`
@@ -135,6 +135,7 @@ PVTKGridFile("heat_equation_distributed", dh) do vtk
     vtk_shared_edges(vtk, dgrid) #src
     vtk_partitioning(vtk, dgrid)
 end
+#md nothing # hide
 
 ## Test the result against the manufactured solution                    #src
 using Test                                                              #src

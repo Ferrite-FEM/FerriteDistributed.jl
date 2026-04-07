@@ -12,7 +12,6 @@ using Base: @propagate_inbounds
 
 include("FerriteDistributedPartitionedArrays/assembler.jl")
 include("FerriteDistributedPartitionedArrays/constraints.jl")
-include("FerriteDistributedPartitionedArrays/export-vtk.jl")
 
 function __init__()
     @info "FerriteDistributedPartitionedArrays extension loaded."

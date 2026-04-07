@@ -113,11 +113,15 @@ apply!(K, f, ch)
 # partly due to unimplemented multiplication operators for the matrix data type.
 u = cg(K, f)
 
+# And convert the solution from PartitionedArrays to Ferrite
+u_local = Vector{Float64}(undef, FerriteDistributed.num_local_dofs(dh))
+FerriteDistributed.extract_local_part!(u_local, u, dh);
+
 # ### Exporting via PVTK
 # To visualize the result we export the grid and our field `u`
 # to a VTK-file, which can be viewed in e.g. [ParaView](https://www.paraview.org/).
 PVTKGridFile("heat_equation_distributed", dh) do vtk
-    write_solution(vtk, dh, u)
+    write_solution(vtk, dh, u_local)
     ## For debugging purposes it can be helpful to enrich 
     ## the visualization with some meta  information about 
     ## the grid and its partitioning
@@ -126,10 +130,10 @@ PVTKGridFile("heat_equation_distributed", dh) do vtk
     vtk_shared_edges(vtk, dgrid) #src
     vtk_partitioning(vtk, dgrid)
 end
+#md nothing # hide
 
 ## Test the result against the manufactured solution                    #src
 using Test                                                              #src
-u_local = gather_dof_values(u, dh)                                      #src
 for cell in CellIterator(dh)                                            #src
     reinit!(cellvalues, cell)                                           #src
     n_basefuncs = getnbasefunctions(cellvalues)                         #src
