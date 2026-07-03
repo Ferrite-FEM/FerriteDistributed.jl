@@ -903,7 +903,7 @@ function Ferrite._evaluate_at_grid_nodes!(data::Union{Vector,Matrix}, dh::NODDof
         u::Vector{T}, cv::CellValues, drange::UnitRange, ::Type{RT}) where {T, RT}
     ue = zeros(T, length(drange))
     # TODO: Remove this hack when embedding works...
-    if RT <: Vec && cv isa CellValues{<:ScalarInterpolation}
+    if RT <: Vec && Ferrite.function_interpolation(cv) isa Ferrite.ScalarInterpolation
         uer = reinterpret(RT, ue)
     else
         uer = ue
