@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Distributed Assembly with HYPRE.jl · FerriteDistributed.jl</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">FerriteDistributed.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Examples</span><ul><li class="is-active"><a class="tocitem" href>Distributed Assembly with HYPRE.jl</a><ul class="internal"><li><a class="tocitem" href="#Introduction"><span>Introduction</span></a></li><li><a class="tocitem" href="#Commented-Program"><span>Commented Program</span></a></li><li><a class="tocitem" href="#distributed-assembly-plain-hypre"><span>Plain program</span></a></li></ul></li><li><a class="tocitem" href="../heat_equation_pa/">Distributed Assembly with PartitionedArrays.jl</a></li></ul></li><li><span class="tocitem">Reference</span><ul><li><a class="tocitem" href="../../reference/interface/">Interface</a></li><li><a class="tocitem" href="../../reference/grid/">NODGrid</a></li><li><a class="tocitem" href="../../reference/utils/">Utils</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Distributed Assembly with HYPRE.jl</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Distributed Assembly with HYPRE.jl</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/Ferrite-FEM/FerriteDistributed.jl/blob/main/docs/src/literate/heat_equation_hypre.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Distributed-Assembly-with-HYPRE.jl"><a class="docs-heading-anchor" href="#Distributed-Assembly-with-HYPRE.jl">Distributed Assembly with HYPRE.jl</a><a id="Distributed-Assembly-with-HYPRE.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Distributed-Assembly-with-HYPRE.jl" title="Permalink"></a></h1><h2 id="Introduction"><a class="docs-heading-anchor" href="#Introduction">Introduction</a><a id="Introduction-1"></a><a class="docs-heading-anchor-permalink" href="#Introduction" title="Permalink"></a></h2><p>Now we want to solve the heat problem in parallel. To be specific, this example shows how to utilize process parallelism to assemble finite element matrices in parallel. This example presumes that the reader is familiar with solving the heat problem in serial with Ferrite.jl, as presented in <a href="examples/@ref heat_example">the first example</a>.</p><h2 id="Commented-Program"><a class="docs-heading-anchor" href="#Commented-Program">Commented Program</a><a id="Commented-Program-1"></a><a class="docs-heading-anchor-permalink" href="#Commented-Program" title="Permalink"></a></h2><p>Now we solve the problem in Ferrite. What follows is a program spliced with comments. The full program, without comments, can be found in the next <a href="examples/@ref heat_equation-plain-program">section</a>.</p><p>First we load Ferrite, and some other packages we need</p><pre><code class="language-julia hljs">using FerriteDistributed
+using HYPRE, Metis
+
+import FerriteDistributed: getglobalgrid, global_comm, local_dof_range #TODO REMOVE THIS</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><p>Launch MPI and HYPRE</p><pre><code class="language-julia hljs">MPI.Init()
+HYPRE.Init()</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><p>We start generating a simple grid with 10x10x10 hexahedral elements and distribute it across our processors using <code>generate_distributed_grid</code>.</p><pre><code class="language-julia hljs">dgrid = generate_nod_grid(MPI.COMM_WORLD, Hexahedron, (10, 10, 10); partitioning_alg=FerriteDistributed.PartitioningAlgorithm.Metis(:RECURSIVE));
+nothing #hide</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><h3 id="Trial-and-test-functions"><a class="docs-heading-anchor" href="#Trial-and-test-functions">Trial and test functions</a><a id="Trial-and-test-functions-1"></a><a class="docs-heading-anchor-permalink" href="#Trial-and-test-functions" title="Permalink"></a></h3><p>Nothing changes here.</p><pre><code class="language-julia hljs">ref = RefHexahedron
+ip = Lagrange{ref, 2}()
+ip_geo = Lagrange{ref, 1}()
+qr = QuadratureRule{ref}(3)
+cellvalues = CellValues(qr, ip, ip_geo);
+nothing #hide</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><h3 id="Degrees-of-freedom"><a class="docs-heading-anchor" href="#Degrees-of-freedom">Degrees of freedom</a><a id="Degrees-of-freedom-1"></a><a class="docs-heading-anchor-permalink" href="#Degrees-of-freedom" title="Permalink"></a></h3><p>Nothing changes here, too. The constructor takes care of creating the correct distributed dof handler.</p><pre><code class="language-julia hljs">dh = DofHandler(dgrid)
+push!(dh, :u, 1, ip)
+close!(dh);
+nothing #hide</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><h3 id="Boundary-conditions"><a class="docs-heading-anchor" href="#Boundary-conditions">Boundary conditions</a><a id="Boundary-conditions-1"></a><a class="docs-heading-anchor-permalink" href="#Boundary-conditions" title="Permalink"></a></h3><p>Nothing has to be changed here either.</p><pre><code class="language-julia hljs">ch = ConstraintHandler(dh);
+∂Ω = union(getfaceset.((dgrid, ), [&quot;left&quot;, &quot;right&quot;, &quot;top&quot;, &quot;bottom&quot;, &quot;front&quot;, &quot;back&quot;])...);
+dbc = Dirichlet(:u, ∂Ω, (x, t) -&gt; 0)
+add!(ch, dbc);
+close!(ch)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><h3 id="Assembling-the-linear-system"><a class="docs-heading-anchor" href="#Assembling-the-linear-system">Assembling the linear system</a><a id="Assembling-the-linear-system-1"></a><a class="docs-heading-anchor-permalink" href="#Assembling-the-linear-system" title="Permalink"></a></h3><p>Assembling the system works also mostly analogue.</p><pre><code class="language-julia hljs">function doassemble(cellvalues::CellValues, dh::FerriteDistributed.NODDofHandler{dim}, ch::ConstraintHandler) where {dim}
+    n_basefuncs = getnbasefunctions(cellvalues)
+    Ke = zeros(n_basefuncs, n_basefuncs)
+    fe = zeros(n_basefuncs)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><p>––––––––––- Distributed assembly –––––––––– The synchronization with the global sparse matrix is handled by an assembler again. You can choose from different backends, which are described in the docs and will be expaned over time. This call may trigger a large amount of communication.</p><p>TODO how to put this into an interface?</p><pre><code class="language-julia hljs">    dgrid = getglobalgrid(dh)
+    comm = global_comm(dgrid)
+    ldofrange = local_dof_range(dh)
+    K = HYPREMatrix(comm, first(ldofrange), last(ldofrange))
+    f = HYPREVector(comm, first(ldofrange), last(ldofrange))
+
+    assembler = start_assemble(K, f)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><p>For the local assembly nothing changes</p><pre><code class="language-julia hljs">    for cell in CellIterator(dh)
+        fill!(Ke, 0)
+        fill!(fe, 0)
+
+        reinit!(cellvalues, cell)
+        coords = getcoordinates(cell)
+
+        for q_point in 1:getnquadpoints(cellvalues)
+            dΩ = getdetJdV(cellvalues, q_point)
+
+            for i in 1:n_basefuncs
+                v  = shape_value(cellvalues, q_point, i)
+                ∇v = shape_gradient(cellvalues, q_point, i)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><p>Manufactured solution of Π cos(xᵢπ)</p><pre><code class="language-julia hljs">                x = spatial_coordinate(cellvalues, q_point, coords)
+                fe[i] += (π/2)^2 * dim * prod(cos, x*π/2) * v * dΩ
+
+                for j in 1:n_basefuncs
+                    ∇u = shape_gradient(cellvalues, q_point, j)
+                    Ke[i, j] += (∇v ⋅ ∇u) * dΩ
+                end
+            end
+        end
+
+        apply_local!(Ke, fe, celldofs(cell), ch)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><p>TODO how to put this into an interface.</p><pre><code class="language-julia hljs">        assemble!(assembler, dh.ldof_to_gdof[celldofs(cell)], fe, Ke)
+    end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><p>Finally, for the <code>HYPREAssembler</code> we have to call <code>end_assemble</code> to construct the global sparse matrix and the global right hand side vector.</p><pre><code class="language-julia hljs">    end_assemble(assembler)
+
+    return K, f
+end
+nothing # hide</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><h3 id="Solution-of-the-system"><a class="docs-heading-anchor" href="#Solution-of-the-system">Solution of the system</a><a id="Solution-of-the-system-1"></a><a class="docs-heading-anchor-permalink" href="#Solution-of-the-system" title="Permalink"></a></h3><p>Again, we assemble our problem. Note that we applied the constraints locally.</p><pre><code class="language-julia hljs">K, f = doassemble(cellvalues, dh, ch);
+nothing #hide</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><p>We use CG with AMG preconditioner to solve the system.</p><pre><code class="language-julia hljs">precond = HYPRE.BoomerAMG()
+solver = HYPRE.PCG(; Precond = precond)
+uₕ = HYPRE.solve(solver, K, f)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><p>And convert the solution from HYPRE to Ferrite</p><pre><code class="language-julia hljs">u_local = Vector{Float64}(undef, FerriteDistributed.num_local_dofs(dh))
+FerriteDistributed.extract_local_part!(u_local, uₕ, dh)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><h3 id="Exporting-via-PVTK"><a class="docs-heading-anchor" href="#Exporting-via-PVTK">Exporting via PVTK</a><a id="Exporting-via-PVTK-1"></a><a class="docs-heading-anchor-permalink" href="#Exporting-via-PVTK" title="Permalink"></a></h3><p>To visualize the result we export the grid and our field <code>u</code> to a VTK-file, which can be viewed in e.g. <a href="https://www.paraview.org/">ParaView</a>.</p><pre><code class="language-julia hljs">vtk_grid(&quot;heat_equation_distributed&quot;, dh) do vtk
+    vtk_point_data(vtk, dh, u_local)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><p>For debugging purposes it can be helpful to enrich the visualization with some meta  information about the grid and its partitioning</p><pre><code class="language-julia hljs">    vtk_shared_vertices(vtk, dgrid)
+    vtk_shared_faces(vtk, dgrid)
+    vtk_partitioning(vtk, dgrid)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&lt;&lt; @example-block not executed in draft mode &gt;&gt;</code></pre><h2 id="distributed-assembly-plain-hypre"><a class="docs-heading-anchor" href="#distributed-assembly-plain-hypre">Plain program</a><a id="distributed-assembly-plain-hypre-1"></a><a class="docs-heading-anchor-permalink" href="#distributed-assembly-plain-hypre" title="Permalink"></a></h2><p>Here follows a version of the program without any comments. The file is also available here: <a href="examples/distributed_assembly_hypre.jl"><code>distributed_assembly_hypre.jl</code></a>.</p><pre><code class="language-julia hljs">using FerriteDistributed
+using HYPRE, Metis
+
+import FerriteDistributed: getglobalgrid, global_comm, local_dof_range #TODO REMOVE THIS
+
+MPI.Init()
+HYPRE.Init()
+
+dgrid = generate_nod_grid(MPI.COMM_WORLD, Hexahedron, (10, 10, 10); partitioning_alg=FerriteDistributed.PartitioningAlgorithm.Metis(:RECURSIVE));
+
+ref = RefHexahedron
+ip = Lagrange{ref, 2}()
+ip_geo = Lagrange{ref, 1}()
+qr = QuadratureRule{ref}(3)
+cellvalues = CellValues(qr, ip, ip_geo);
+
+dh = DofHandler(dgrid)
+push!(dh, :u, 1, ip)
+close!(dh);
+
+ch = ConstraintHandler(dh);
+∂Ω = union(getfaceset.((dgrid, ), [&quot;left&quot;, &quot;right&quot;, &quot;top&quot;, &quot;bottom&quot;, &quot;front&quot;, &quot;back&quot;])...);
+dbc = Dirichlet(:u, ∂Ω, (x, t) -&gt; 0)
+add!(ch, dbc);
+close!(ch)
+
+function doassemble(cellvalues::CellValues, dh::FerriteDistributed.NODDofHandler{dim}, ch::ConstraintHandler) where {dim}
+    n_basefuncs = getnbasefunctions(cellvalues)
+    Ke = zeros(n_basefuncs, n_basefuncs)
+    fe = zeros(n_basefuncs)
+
+    dgrid = getglobalgrid(dh)
+    comm = global_comm(dgrid)
+    ldofrange = local_dof_range(dh)
+    K = HYPREMatrix(comm, first(ldofrange), last(ldofrange))
+    f = HYPREVector(comm, first(ldofrange), last(ldofrange))
+
+    assembler = start_assemble(K, f)
+
+    for cell in CellIterator(dh)
+        fill!(Ke, 0)
+        fill!(fe, 0)
+
+        reinit!(cellvalues, cell)
+        coords = getcoordinates(cell)
+
+        for q_point in 1:getnquadpoints(cellvalues)
+            dΩ = getdetJdV(cellvalues, q_point)
+
+            for i in 1:n_basefuncs
+                v  = shape_value(cellvalues, q_point, i)
+                ∇v = shape_gradient(cellvalues, q_point, i)
+
+                x = spatial_coordinate(cellvalues, q_point, coords)
+                fe[i] += (π/2)^2 * dim * prod(cos, x*π/2) * v * dΩ
+
+                for j in 1:n_basefuncs
+                    ∇u = shape_gradient(cellvalues, q_point, j)
+                    Ke[i, j] += (∇v ⋅ ∇u) * dΩ
+                end
+            end
+        end
+
+        apply_local!(Ke, fe, celldofs(cell), ch)
+
+        assemble!(assembler, dh.ldof_to_gdof[celldofs(cell)], fe, Ke)
+    end
+
+    end_assemble(assembler)
+
+    return K, f
+end
+
+K, f = doassemble(cellvalues, dh, ch);
+
+precond = HYPRE.BoomerAMG()
+solver = HYPRE.PCG(; Precond = precond)
+uₕ = HYPRE.solve(solver, K, f)
+
+u_local = Vector{Float64}(undef, FerriteDistributed.num_local_dofs(dh))
+FerriteDistributed.extract_local_part!(u_local, uₕ, dh)
+
+vtk_grid(&quot;heat_equation_distributed&quot;, dh) do vtk
+    vtk_point_data(vtk, dh, u_local)
+
+    vtk_shared_vertices(vtk, dgrid)
+    vtk_shared_faces(vtk, dgrid)
+    vtk_partitioning(vtk, dgrid)
+end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Home</a><a class="docs-footer-nextpage" href="../heat_equation_pa/">Distributed Assembly with PartitionedArrays.jl »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Thursday 28 September 2023 18:47">Thursday 28 September 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
