@@ -77,13 +77,7 @@ function CoverTopology(grid::Ferrite.AbstractGrid)
                 Ferrite._add_single_vertex_neighbor!(vert_buf, cell, cell_id, neighbor_cell, neighbor_cell_id)
             end
             if num_shared >= 2
-                if Ferrite.getrefdim(cell) == 2
-                    Ferrite._add_single_face_neighbor!(face_buf, cell, cell_id, neighbor_cell, neighbor_cell_id)
-                elseif Ferrite.getrefdim(cell) == 3
-                    _add_all_edge_neighbors_cover!(edge_buf, cell, cell_id, neighbor_cell, neighbor_cell_id)
-                else
-                    @error "Case not implemented."
-                end
+                _add_all_edge_neighbors_cover!(edge_buf, cell, cell_id, neighbor_cell, neighbor_cell_id)
             end
             if num_shared >= 3
                 Ferrite._add_single_face_neighbor!(face_buf, cell, cell_id, neighbor_cell, neighbor_cell_id)
@@ -137,7 +131,7 @@ function Ferrite.getneighborhood(top::CoverTopology, grid::Ferrite.AbstractGrid,
     end
 end
 
-function Ferrite.getneighborhood(top::CoverTopology, grid::Ferrite.AbstractGrid{3}, edgeidx::EdgeIndex, include_self=false)
+function Ferrite.getneighborhood(top::CoverTopology, grid::Ferrite.AbstractGrid, edgeidx::EdgeIndex, include_self=false)
     neighbors = top.edge_edge_neighbor[edgeidx[1], edgeidx[2]]
     if include_self
         return view(push!(collect(neighbors), edgeidx), 1:(length(neighbors) + 1))

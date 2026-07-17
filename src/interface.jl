@@ -2,6 +2,10 @@
     AbstractNODGrid{sdim} <: Ferrite.AbstractGrid{sdim}
 
 Supertype for the non-overlapping grid interface.
+
+Implementations must number the local nodes such that the relative order of the global
+node ids is preserved. This makes node id comparisons, and hence entity orientations
+(e.g. of edge dof blocks), agree between all processes.
 """
 abstract type AbstractNODGrid{sdim} <: Ferrite.AbstractGrid{sdim} end
 
