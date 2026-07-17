@@ -94,12 +94,12 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
         end
     end
 
-    # 3. Build a map for global to local node indices
-    next_local_node_idx = 1
+    # 3. Build a map for global to local node indices. Local node ids are assigned in
+    # ascending global id order, so that node id comparisons (and hence entity
+    # orientations, e.g. of edge dofs) agree between all processes.
     global_to_local_node_map = Dict{Int,Int}()
-    for global_node_idx ∈ local_node_index_set
-        global_to_local_node_map[global_node_idx] = next_local_node_idx
-        next_local_node_idx += 1
+    for (local_node_idx, global_node_idx) ∈ enumerate(sort!(collect(local_node_index_set)))
+        global_to_local_node_map[global_node_idx] = local_node_idx
     end
 
     # 4. Extract local nodes

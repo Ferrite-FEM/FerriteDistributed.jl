@@ -206,8 +206,7 @@ has_cell_dofs(dh::NODDofHandler, field_idx::Int, cell::Int) = !isempty(cell_dofs
 function Ferrite.close!(dh::NODDofHandler)
     ldh = getlocaldofhandler(dh)
     _, vertexdicts, edgedicts, facedicts = Ferrite.__close!(ldh)
-    nranks = global_nranks(getglobalgrid(dh))
-    counts = _entity_dof_counts(ldh, nranks)
+    counts = _entity_dof_counts(ldh)
     setfield!(dh, :entity_dofs, EntityDofInfo(vertexdicts, edgedicts, facedicts, counts))
     _distribute_global_dofs!(dh)
     return dh
@@ -216,7 +215,12 @@ end
 # Number of dofs per (entity kind, field) block, including all components. The counts must
 # agree between all SubDofHandlers sharing a field, otherwise dof blocks on subdomain
 # interfaces are ambiguous.
-function _entity_dof_counts(ldh::Ferrite.DofHandler, nranks::Int)
+#
+# Blocks of shared entities are exchanged in the canonical entity orientation induced by
+# the local node ids. Since the local node numbering preserves the global node order (see
+# `AbstractNODGrid`), this orientation is the same on all processes, also for entities
+# with more than one dof (e.g. edges of cubic interpolations).
+function _entity_dof_counts(ldh::Ferrite.DofHandler)
     nfields = length(ldh.field_names)
     counts = fill(-1, 3, nfields)
     for sdh in ldh.subdofhandlers
@@ -226,9 +230,6 @@ function _entity_dof_counts(ldh::Ferrite.DofHandler, nranks::Int)
             nv = _uniform_entity_count(info.nvertexdofs, name)
             ne = _uniform_entity_count(info.nedgedofs, name)
             nf = _uniform_entity_count(info.nfacedofs, name)
-            if nranks > 1 && (nv > 1 || ne > 1)
-                error("Field :$name has more than one dof per vertex or edge; the orientation handling required for this is not implemented for distributed grids.")
-            end
             c = (nv * info.n_copies, ne * info.n_copies, nf * info.n_copies)
             for kind in 1:3
                 if counts[kind, gidx] == -1

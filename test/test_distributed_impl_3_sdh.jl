@@ -57,22 +57,29 @@ function check_consistency(dh, serial_dh, partitioning)
     @test length(serial_to_global) == ndofs(serial_dh)
 end
 
-# 2D quadratic interpolation: interior edge dofs must be synchronized across the
-# process boundary.
-@testset "distributed dofs 2D quadratic" begin
-    grid = generate_grid(Quadrilateral, (3, 3))
-    partitioning = [1, 1, 2, 2, 3, 3, 1, 2, 3]
-    dgrid = NODGrid(comm, grid, CoverTopology(grid), partitioning)
+# Higher order interpolations: interior edge dofs must be synchronized across the
+# process boundary. The cubic case has two interior dofs per edge whose order depends
+# on the edge orientation.
+@testset "distributed dofs 2D higher order" begin
+    for ip in (
+            Lagrange{RefQuadrilateral, 2}(),
+            Lagrange{RefQuadrilateral, 3}(),
+            Lagrange{RefQuadrilateral, 3}()^2,
+        )
+        grid = generate_grid(Quadrilateral, (3, 3))
+        partitioning = [1, 1, 2, 2, 3, 3, 1, 2, 3]
+        dgrid = NODGrid(comm, grid, CoverTopology(grid), partitioning)
 
-    dh = DofHandler(dgrid)
-    add!(dh, :u, Lagrange{RefQuadrilateral, 2}())
-    close!(dh)
+        dh = DofHandler(dgrid)
+        add!(dh, :u, ip)
+        close!(dh)
 
-    serial_dh = DofHandler(grid)
-    add!(serial_dh, :u, Lagrange{RefQuadrilateral, 2}())
-    close!(serial_dh)
+        serial_dh = DofHandler(grid)
+        add!(serial_dh, :u, ip)
+        close!(serial_dh)
 
-    check_consistency(dh, serial_dh, partitioning)
+        check_consistency(dh, serial_dh, partitioning)
+    end
 end
 
 # Multiple SubDofHandlers: field :u everywhere, field :p only on the left half. The
