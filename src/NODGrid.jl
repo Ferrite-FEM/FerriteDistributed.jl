@@ -246,7 +246,7 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
             end
 
             # Edge
-            if dim > 2
+            if dim > 1
                 for (i, _) ∈ enumerate(Ferrite.edges(global_cell))
                     cell_edge = EdgeIndex(global_cell_idx, i)
                     remote_edges = Dict{Int,Vector{EdgeIndex}}()
@@ -255,7 +255,7 @@ function NODGrid(grid_comm::MPI.Comm, grid_to_distribute::Grid{dim,C,T}, grid_to
                         other_rank = partitioning[global_cell_neighbor_idx]
                         if other_rank != my_rank
                             if Ferrite.toglobal(grid_to_distribute,cell_edge) == Ferrite.toglobal(grid_to_distribute,other_edge)
-                                if !haskey(remote_edges,other_edge)
+                                if !haskey(remote_edges,other_rank)
                                     remote_edges[other_rank] = Vector(undef,0)
                                 end
                                 Ferrite.@debug println("Detected shared edge $cell_edge neighbor $other_edge (R$my_rank)")

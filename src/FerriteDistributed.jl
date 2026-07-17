@@ -9,11 +9,10 @@ import Ferrite: get_coordinate_eltype, @debug,
     nnodes_per_cell, n_components, get_grid, getrefdim, getspatialdim,
     BoundaryIndex, FaceIndex, FacetIndex, EdgeIndex, CellIndex, VertexIndex,
     AbstractTopology,
-    AbstractCell, boundaryfunction, faces, edges, vertices, nvertices, nfaces, nedges,
-    cellnodes!, cellcoords!,
+    AbstractCell, faces, edges, vertices, nvertices, nfaces, nedges,
     getfieldnames, getfieldinterpolation, geometric_interpolation,
     reference_coordinates, getrefshape, dof_range,
-    BCValues
+    UpdateFlags
 
 import Ferrite: WriteVTK
 using WriteVTK: MeshCell, pvtk_grid, vtk_point_data, vtk_cell_data
@@ -25,6 +24,8 @@ include("CoverTopology.jl")
 include("SharedEntity.jl")
 
 include("interface.jl")
+
+include("Communicator.jl")
 
 include("Partitioning.jl")
 

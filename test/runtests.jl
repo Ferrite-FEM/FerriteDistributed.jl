@@ -58,6 +58,11 @@ end
     for ci in 1:4
         @test isempty(Ferrite.getneighborhood(top, grid, FaceIndex(ci, 1)))
     end
+
+    # edge_edge_neighbor: cells sharing two vertices share an edge, also in 2D
+    @test collect(Ferrite.getneighborhood(top, grid, EdgeIndex(1, 2))) == [EdgeIndex(2, 4)]
+    @test collect(Ferrite.getneighborhood(top, grid, EdgeIndex(1, 3))) == [EdgeIndex(3, 1)]
+    @test isempty(Ferrite.getneighborhood(top, grid, EdgeIndex(1, 1))) # boundary edge
 end
 
 @testset "CoverTopology 3D" begin
@@ -174,6 +179,13 @@ end
     n = 3  # number of processes
     mpiexec() do exe  # MPI wrapper
         run(`$exe -n $n $(Base.julia_cmd()) test_distributed_impl_3.jl`)
+    end
+end
+
+@testset "FerriteMPI n=3 SubDofHandler" begin
+    n = 3  # number of processes
+    mpiexec() do exe  # MPI wrapper
+        run(`$exe -n $n $(Base.julia_cmd()) test_distributed_impl_3_sdh.jl`)
     end
 end
 

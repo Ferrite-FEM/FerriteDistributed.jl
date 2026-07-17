@@ -28,6 +28,7 @@ export
     is_shared_edge,
     is_shared_face,
     getlocalgrid,
+    getlocaldofhandler,
     #
     face_dofs,
     has_face_dofs,
